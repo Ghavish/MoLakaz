@@ -1,0 +1,7 @@
+modal
+fastapi[standard]
+openai
+httpx
+pillow
+numpy
+tzdata

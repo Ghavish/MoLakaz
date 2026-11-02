@@ -1,0 +1,16 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# local backend data (MOLAKAZ_LOCAL=1)
+backend/local_data.json
+backend/local_photos/
+backend/*_marked.jpg
+
+# each dev points the app at their own backend
+mobile/.env
+
+# editor stuff
+.vscode/
+.idea/
