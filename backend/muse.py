@@ -1,9 +1,11 @@
 import json
 import os
+import re
 
-# meta's model api speaks the openai format
-BASE_URL = os.environ.get("MUSE_BASE_URL", "https://api.meta.ai/v1")
-MODEL = os.environ.get("MUSE_MODEL", "muse-spark-1.1")
+# muse spark open, served by baseten for the hackathon. it speaks the openai format.
+# the hackathon key only works with exactly this model name
+BASE_URL = os.environ.get("MUSE_BASE_URL", "https://inference.baseten.co/v1")
+MODEL = os.environ.get("MUSE_MODEL", "meta-models/muse-spark-open-1026")
 
 
 def ready():
@@ -17,7 +19,7 @@ def ask(rules, payload):
     resp = client.chat.completions.create(
         model=MODEL,
         messages=[
-            {"role": "developer", "content": rules},
+            {"role": "system", "content": rules},
             {"role": "user", "content": payload if isinstance(payload, str) else json.dumps(payload)},
         ],
     )
@@ -25,6 +27,9 @@ def ask(rules, payload):
 
 
 def read_json(text):
+    # open-weights models can think out loud first, so drop any <think> block before looking for the json
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.S)
+    text = text.split("</think>")[-1]
     # it sometimes wraps the json in ``` fences or adds a sentence, just grab the object
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end <= start:

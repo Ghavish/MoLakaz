@@ -62,7 +62,7 @@ pip install -r requirements.txt
 modal setup                     # log in once
 ```
 
-Muse Spark key (from dev.meta.ai; the Meta Model API is in public preview for US developers). It's read from your shell when you deploy:
+Muse Spark key: the hackathon's Baseten key for Muse Spark Open (`meta-models/muse-spark-open-1026` at `https://inference.baseten.co/v1`, both the defaults in `backend/muse.py`). Check it works with `python try_muse.py`. It's read from your shell when you deploy:
 
 ```bash
 export MODEL_API_KEY=...        # powershell: $env:MODEL_API_KEY="..."
