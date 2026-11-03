@@ -30,8 +30,8 @@ planner.plan(hh)
 
 def show(hh):
     for d in range(7):
-        todays = [t for t in hh["tasks"] if t["day"] == d]
-        print(planner.DAYS[d], " | ".join(f"{names[t['member']]}: {chore_names[t['chore']]}" + (" (!)" if t["tight"] else "") for t in todays))
+        todays = [t for t in planner.with_times(hh, hh["tasks"]) if t["day"] == d]
+        print(planner.DAYS[d], " | ".join(f"{planner.time_label(t['time'])} {names[t['member']]}: {chore_names[t['chore']]}" + (" (!)" if t["tight"] else "") for t in todays))
     print()
     for row in planner.board(hh):
         print(f"{names[row['member']]:5} {row['tasks']:2} chores {row['minutes']:4} min  share {row['share']:.0%}  fair share {row['fair_share']:.0%}")
@@ -43,6 +43,32 @@ def show(hh):
 
 
 show(hh)
+
+# times: the bins go out at 7, dishes after dinner, anything-goes chores land after school/work on weekdays
+# and in the morning at the weekend. each day reads in order
+timed = planner.with_times(hh, hh["tasks"])
+for t in timed:
+    chore = next(c for c in hh["chores"] if c["id"] == t["chore"])
+    if chore["icon"] == "trash":
+        assert t["time"] == "07:00", t
+    elif chore["icon"] == "dishes":
+        assert t["time"] == "evening", t
+    elif chore["when"] == "anytime":
+        want = "morning" if t["day"] >= 5 else "afternoon" if ages[t["member"]] < 18 else "evening"
+        assert t["time"] == want, (chore["name"], t)
+for d in range(7):
+    order = [planner.time_order(t["time"]) for t in timed if t["day"] == d]
+    assert order == sorted(order), f"{planner.DAYS[d]} isn't in time order"
+assert planner.time_label("07:00") == "7:00 am" and planner.time_label("17:30") == "5:30 pm" and planner.time_label("00:15") == "12:15 am"
+assert [chores.clean_when(x) for x in ["7am", "7:30 PM", "19:00", "Evening", "soon", "7", "25:00"]] == \
+    ["07:00", "19:30", "19:00", "evening", "anytime", "anytime", "anytime"]
+
+# a time muse spark pins for dad stops counting if the chore goes to someone else
+t = dict(next(t for t in hh["tasks"] if names[t["member"]] == "Dad" and t["day"] < 5))
+t.update({"time": "18:30", "time_for": t["member"]})
+assert planner.time_of(t, None) == "18:30"
+t["member"] = next(m["id"] for m in hh["members"] if m["name"] == "Mum")
+assert planner.time_of(t, None) == "evening"
 
 # nobody too young for their chore
 for t in hh["tasks"]:

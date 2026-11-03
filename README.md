@@ -34,6 +34,8 @@ Every chore has a check, e.g. dishes:
 
 SAM 3.1 segments every `look_for` thing in both photos. `clear` chores pass when the count drops to zero, or most of the masked area is gone. `show` chores (fold laundry, cook dinner) pass when the thing appears in the after photo. If the `spot` (sink) shows up in the before photo but not the after, it asks for a retake from the same place. You get the photos back with what SAM found painted red/green. The household admin can always approve a chore by hand.
 
+When a check isn't sure, the chore waits in Home → Approvals. The admin can approve it, or ask for a retake (`POST /households/{id}/tasks/{tid}/retake`): the member gets a push and the chore goes back to needing a new after photo, at the top of their Today. Under any result, "Ask Mum to check" (`POST .../review`) flags the chore for Approvals and pushes the admin, even when the check passed. A new photo or the admin's decision clears both.
+
 Weights: `unsloth/sam3.1`, which is SAM 3.1 converted to transformers' `Sam3Model` format (not gated). Meta's official `facebook/sam3.1` repo only ships the video multiplex checkpoint with no transformers support. To use Meta's official SAM 3 image model instead, deploy with `SAM_MODEL=facebook/sam3` and an `HF_TOKEN` that has access.
 
 ## How the fair split works
@@ -43,6 +45,7 @@ Weights: `unsloth/sam3.1`, which is SAM 3.1 converted to transformers' `Sam3Mode
 1. Each chore becomes N slots spread across the week (3x a week → Mon/Wed/Fri style).
 2. Biggest jobs first, each slot goes to whoever ends up with the lowest *(chore minutes × effort) / free minutes this week*, and only if they have the time free that day and are old enough. Small nudges: rotate who gets what (last week counts too), avoid dislikes, don't drift more than 2 days, never the same chore twice on one day.
 3. Fairness score = Jain's index over everyone's load/free-time ratio. 100% means everyone gives up the same share of their free time.
+4. Every chore gets a time of day. A chore can have its own (bins at 7:00 am, dishes in the evening, set in the chore editor). Otherwise weekdays go after school for kids and after work for grown ups, and weekends go in the morning. Muse Spark can pin a time for one person when the notes say so ("Dad's home after 6"). Days read in time order on Today and Week, and in the reminders.
 
 Muse Spark then gets the household, the notes ("John has exams Thursday"), last week's record and the draft, and suggests moves plus a short note for each person. Its moves are only kept if they don't make the week less fair or push anyone past their free time. With no key set, the fair-share plan is used as is.
 

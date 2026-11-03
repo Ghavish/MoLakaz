@@ -34,7 +34,8 @@ export default function Today() {
   if (!member) return <Redirect href="/welcome" />;
   if (hh.chores.length === 0) return <Redirect href="/review" />;
 
-  const today = hh.tasks.filter((t) => t.member === me && t.day === hh.today);
+  // plus anything from earlier in the week the admin asked you to retake, so it doesn't get lost
+  const today = hh.tasks.filter((t) => t.member === me && (t.day === hh.today || (t.day < hh.today && t.status === 'retry' && t.retake)));
   const done = today.filter((t) => t.status === 'done').length;
   const hero = today.find((t) => t.status === 'started' || t.status === 'retry');
   const rest = [...today.filter((t) => t !== hero)].sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));

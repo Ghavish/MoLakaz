@@ -3,7 +3,7 @@ import { Camera, Check } from 'lucide-react-native';
 import { View } from 'react-native';
 
 import type { Chore, Household, Task } from '@/lib/types';
-import { radius, useTheme } from '@/lib/theme';
+import { radius, timeLabel, useTheme } from '@/lib/theme';
 import { Badge, Button, Card, ChoreIcon, Txt } from './ui';
 
 export function StatusBadge({ status, onHero }: { status: Task['status']; onHero?: boolean }) {
@@ -19,6 +19,8 @@ export function StatusBadge({ status, onHero }: { status: Task['status']; onHero
 
 export function choreMeta(chore: Chore, task: Task) {
   const bits = [`${chore.minutes} min`];
+  if (task.time) bits.unshift(timeLabel(task.time));
+  if (task.retake) bits.push('New photo asked for');
   if (chore.check.spot) bits.push(`Photo of the ${chore.check.spot}`);
   else if (chore.check.look_for[0]) bits.push(`Photo of the ${chore.check.look_for[0]}`);
   if (task.carried) bits.push('Carried over');

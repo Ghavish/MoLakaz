@@ -7,9 +7,8 @@ import { Image, Pressable, Share, Text, View } from 'react-native';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { Button, Card, Chip, HScroll, IconButton, Input, ListCard, PersonTile, Screen, Txt } from '@/components/ui';
 import { api, photoUrl } from '@/lib/api';
-import { askForRetake } from '@/lib/mocks';
 import { useHousehold, useSession } from '@/lib/session';
-import { ask, dayLabel, font, freeLabel, personTone, radius, tell, timesLabel, useTheme } from '@/lib/theme';
+import { ask, dayLabel, font, freeLabel, personTone, radius, tell, timeLabel, timesLabel, useTheme } from '@/lib/theme';
 import { useRefresher } from '@/lib/useRefresher';
 
 type Tab = 'approvals' | 'notes' | 'people' | 'chores';
@@ -29,7 +28,8 @@ export default function Home() {
 
   const admin = hh.members.find((m) => m.admin) ?? hh.members[0];
   const isAdmin = member.admin;
-  const pending = hh.tasks.filter((t) => t.status === 'retry');
+  // checks that weren't sure (until the admin has asked for a retake), plus anything someone asked the admin to look at
+  const pending = hh.tasks.filter((t) => t.review || (t.status === 'retry' && !t.retake));
   const notes = (hh.notes || '').split('\n').map((n) => n.trim()).filter(Boolean);
   const fair = Math.round(hh.fairness * 100);
 
@@ -44,9 +44,16 @@ export default function Home() {
     }
   }
 
-  async function retake(name: string) {
-    await askForRetake();
-    tell('Retake requested', `We'll ask ${name} to snap the after photo again.`);
+  async function retake(tid: string, name: string) {
+    setBusy('retake:' + tid);
+    try {
+      setHousehold(await api.retake(hh!.id, tid, me!));
+      tell('Retake requested', `We've asked ${name} to snap the after photo again.`);
+    } catch (e) {
+      tell("That didn't work", (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
   }
 
   // notes are saved with the household setup, which re-plans the week
@@ -123,6 +130,10 @@ export default function Home() {
             const chore = hh.chores.find((x) => x.id === t.chore);
             if (!who || !chore) return null;
             const pic = photoUrl(t.check?.after_marked ?? t.after);
+            const asker = t.review ? hh.members.find((m) => m.id === t.review_by) : undefined;
+            const why = t.review
+              ? `${asker?.id === me ? 'You' : asker?.name ?? 'Someone'} asked ${isAdmin ? 'you' : admin?.name} to check. ${t.check?.reason ?? ''}`
+              : `${t.check?.reason ?? "The photo check wasn't sure."} Can you look?`;
             return (
               <Card key={t.id} style={{ marginBottom: 10 }} onPress={() => router.push({ pathname: '/chore/[id]', params: { id: t.id } })}>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -134,14 +145,14 @@ export default function Home() {
                       <Text style={{ color: personTone(c, hh, who.id).ink }}>{who.name}</Text> · {chore.name}
                     </Text>
                     <Txt v="caption">
-                      {dayLabel(hh, t.day)} · {t.check?.reason ?? "The photo check wasn't sure."} Can you look?
+                      {dayLabel(hh, t.day)} · {why}
                     </Txt>
                   </View>
                 </View>
                 {isAdmin ? (
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                     <Button label="Approve" small onPress={() => approve(t.id)} loading={busy === 'approve:' + t.id} style={{ flex: 1 }} />
-                    <Button label="Ask for a retake" kind="outline" small onPress={() => retake(who.name)} style={{ flex: 1 }} />
+                    <Button label="Ask for a retake" kind="outline" small onPress={() => retake(t.id, who.name)} loading={busy === 'retake:' + t.id} style={{ flex: 1 }} />
                   </View>
                 ) : null}
               </Card>
@@ -150,7 +161,7 @@ export default function Home() {
         ) : (
           <Card>
             <Txt v="body" muted>
-              Nothing to approve. When a photo check isn't sure, it lands here{isAdmin ? ' for you to look at' : ` for ${admin?.name} to look at`}.
+              Nothing to approve. When a photo check isn't sure, or someone asks for a second look, it lands here{isAdmin ? ' for you' : ` for ${admin?.name}`}.
             </Txt>
           </Card>
         ))}
@@ -212,7 +223,8 @@ export default function Home() {
               <Pressable key={x.id} disabled={!isAdmin} onPress={() => router.push('/review')} style={{ minHeight: 56, paddingVertical: 10, justifyContent: 'center' }}>
                 <Txt v="bodyMedium">{x.name}</Txt>
                 <Txt v="caption">
-                  {timesLabel(x.per_week)} · {x.minutes} min
+                  {timesLabel(x.per_week)} · {x.when && x.when !== 'anytime' ? timeLabel(x.when) + ' · ' : ''}
+                  {x.minutes} min
                 </Txt>
               </Pressable>
             ))}

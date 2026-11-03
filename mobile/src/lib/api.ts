@@ -96,6 +96,10 @@ export const api = {
   skip: (hid: string, tid: string, me: string) => post<Household>(`/households/${hid}/tasks/${tid}/skip`, { member_id: me }),
   approve: (hid: string, tid: string, me: string) =>
     post<Household>(`/households/${hid}/tasks/${tid}/approve`, { member_id: me }),
+  retake: (hid: string, tid: string, me: string) =>
+    post<Household>(`/households/${hid}/tasks/${tid}/retake`, { member_id: me }),
+  review: (hid: string, tid: string, me: string) =>
+    post<Household>(`/households/${hid}/tasks/${tid}/review`, { member_id: me }),
   before: (hid: string, tid: string, me: string, uri: string) =>
     upload<Household>(`/households/${hid}/tasks/${tid}/before`, uri, me),
   after: (hid: string, tid: string, me: string, uri: string) =>

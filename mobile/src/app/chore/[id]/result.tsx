@@ -1,17 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, Check, RotateCcw, Sparkles } from 'lucide-react-native';
+import { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { Button, Card, Header, Screen, Txt } from '@/components/ui';
-import { photoUrl } from '@/lib/api';
-import { askAdminToCheck } from '@/lib/mocks';
-import { useHousehold } from '@/lib/session';
+import { api, photoUrl } from '@/lib/api';
+import { useHousehold, useSession } from '@/lib/session';
 import { font, radius, tell, useTheme } from '@/lib/theme';
 
 export default function Result() {
   const { c } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hh, me } = useHousehold();
+  const setHousehold = useSession((s) => s.setHousehold);
+  const [asking, setAsking] = useState(false);
   if (!hh || !me) return null;
   const t = hh.tasks.find((x) => x.id === id);
   const chore = t && hh.chores.find((x) => x.id === t.chore);
@@ -75,17 +77,37 @@ export default function Result() {
             <Button label="Retake the after photo" icon={Camera} onPress={() => router.replace({ pathname: '/chore/[id]/photo', params: { id: t.id, step: 'after' } })} />
           )}
           {admin && admin.id !== me ? (
-            <Pressable
-              onPress={async () => {
-                await askAdminToCheck();
-                tell('Sent', `${admin.name} will take a look.`);
-              }}
-              style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}
-            >
-              <Txt v="caption">
-                {ok ? 'Not right?' : 'Think it is done?'} <Text style={{ fontFamily: font.semibold, color: c.text }}>Ask {admin.name} to check</Text>
-              </Txt>
-            </Pressable>
+            t.review ? (
+              <View style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+                <Txt v="caption">Sent to {admin.name} to check</Txt>
+              </View>
+            ) : (
+              <Pressable
+                disabled={asking}
+                onPress={async () => {
+                  setAsking(true);
+                  try {
+                    setHousehold(await api.review(hh.id, t.id, me));
+                    tell('Sent', `${admin.name} will take a look.`);
+                  } catch (e) {
+                    tell("Couldn't send that", (e as Error).message);
+                  } finally {
+                    setAsking(false);
+                  }
+                }}
+                style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}
+              >
+                <Txt v="caption">
+                  {asking ? (
+                    'Sending…'
+                  ) : (
+                    <>
+                      {ok ? 'Not right?' : 'Think it is done?'} <Text style={{ fontFamily: font.semibold, color: c.text }}>Ask {admin.name} to check</Text>
+                    </>
+                  )}
+                </Txt>
+              </Pressable>
+            )
           ) : !ok ? (
             <Button label="Back to today" kind="outline" onPress={() => router.replace('/today')} style={{ marginTop: 10 }} />
           ) : null}
