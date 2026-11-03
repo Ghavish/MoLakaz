@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 import type { AssistantChanges, Chore, CheckResult, Household, Member, WeekView } from './types';
@@ -48,8 +49,9 @@ async function attach(form: FormData, field: string, uri: string, name: string, 
     const blob = await (await fetch(uri)).blob();
     form.append(field, blob, name);
   } else {
-    // react native's FormData takes a file like this
-    form.append(field, { uri: fileUri(uri), name, type } as unknown as Blob);
+    // expo's fetch (the default since sdk 52) doesn't take react native's { uri, name, type } file parts and fails with
+    // "Unsupported FormDataPart implementation". it does take an expo-file-system File, which it reads the bytes from.
+    form.append(field, new File(fileUri(uri)) as unknown as Blob);
   }
 }
 
