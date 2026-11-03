@@ -1,42 +1,59 @@
-import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Redirect, router } from 'expo-router';
+import { Clock, Mic, Moon, Sparkles, Sun } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 
-import { ChoreRow } from '@/components/ChoreRow';
-import { Button, Card, Muted, Screen, Section } from '@/components/ui';
+import { ChoreCard, HeroChore } from '@/components/ChoreRow';
+import { Button, Card, IconButton, PersonTile, ProgressRing, Screen, Section, TextLink, TintCard, Txt } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useHousehold, useSession } from '@/lib/session';
-import { colors, dateOf, dayLabel, LONG_DAYS, tell } from '@/lib/theme';
+import { ask, dateOf, font, LONG_DAYS, personTone, tell, useTheme } from '@/lib/theme';
+import type { Task } from '@/lib/types';
 import { useRefresher } from '@/lib/useRefresher';
 
 export default function Today() {
+  const { c, dark, toggle } = useTheme();
   const { hh, me, member } = useHousehold();
   const setHousehold = useSession((s) => s.setHousehold);
   const leave = useSession((s) => s.leave);
   const { refreshing, reload } = useRefresher();
   const [busy, setBusy] = useState(false);
+  const [undo, setUndo] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // got taken out of the household
   const gone = !!hh && !member;
   useEffect(() => {
     if (gone) leave();
   }, [gone]);
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   if (!hh) return null;
   if (!member) return <Redirect href="/welcome" />;
-  if (hh.chores.length === 0) return <Redirect href="/setup" />;
+  if (hh.chores.length === 0) return <Redirect href="/review" />;
 
-  const mine = hh.tasks.filter((t) => t.member === me);
-  const today = mine.filter((t) => t.day === hh.today);
-  const later = mine.filter((t) => t.day > hh.today && t.status !== 'done').slice(0, 6);
+  const today = hh.tasks.filter((t) => t.member === me && t.day === hh.today);
   const done = today.filter((t) => t.status === 'done').length;
+  const hero = today.find((t) => t.status === 'started' || t.status === 'retry');
+  const rest = [...today.filter((t) => t !== hero)].sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));
   const away = (member.away ?? []).includes(hh.today);
   const note = hh.messages?.[member.id];
+  const tone = personTone(c, hh, member.id);
 
-  async function toggleAway() {
+  function flash(text: string) {
+    setUndo(text);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setUndo(null), 7000);
+  }
+
+  async function toggleAway(show = true) {
     setBusy(true);
     try {
-      setHousehold(await api.away(hh!.id, me!, hh!.today));
+      const next = await api.away(hh!.id, me!, hh!.today);
+      setHousehold(next);
+      const nowAway = (next.members.find((m) => m.id === me)?.away ?? []).includes(next.today);
+      if (show) flash(nowAway ? 'Your chores for today went to whoever is free.' : "You're back on for today.");
+      else setUndo(null);
     } catch (e) {
       tell("Couldn't change that", (e as Error).message);
     } finally {
@@ -44,73 +61,95 @@ export default function Today() {
     }
   }
 
+  function busyToday() {
+    if (away) return toggleAway();
+    ask('Busy today?', "Your chores for today go to whoever's free. You'll pick some up later in the week so it stays fair.", 'Hand them off', () => toggleAway());
+  }
+
+  function handOff(t: Task) {
+    const name = hh!.chores.find((x) => x.id === t.chore)?.name ?? 'this chore';
+    ask("Can't do it today?", `${name} goes to someone free today, and you'll pick up something else later in the week.`, 'Hand it off', async () => {
+      try {
+        setHousehold(await api.skip(hh!.id, t.id, me!));
+      } catch (e) {
+        tell("That didn't work", (e as Error).message);
+      }
+    });
+  }
+
+  const choreOf = (t: Task) => hh.chores.find((x) => x.id === t.chore);
+  const heroChore = hero && choreOf(hero);
+
   return (
-    <Screen onRefresh={reload} refreshing={refreshing}>
-      <Text style={s.date}>
-        {LONG_DAYS[hh.today]} {dateOf(hh.week, hh.today)}
-      </Text>
-      <Text style={s.hello}>Bonzour, {member.name} 👋</Text>
-
-      {today.length > 0 && (
-        <Card style={s.progress}>
-          <Text style={s.progressText}>
-            {done === today.length ? 'All done for today! 🌴' : `${done} of ${today.length} done today`}
-          </Text>
-          <View style={s.track}>
-            <View style={[s.fill, { width: `${(done / today.length) * 100}%` }]} />
+    <View style={{ flex: 1 }}>
+      <Screen tab onRefresh={reload} refreshing={refreshing}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <PersonTile name={member.name} tone={tone} size={46} round ring />
+          <View style={{ flex: 1 }}>
+            <Txt v="caption">Hello,</Txt>
+            <Txt v="section" style={{ fontSize: 18, marginTop: -2 }} numberOfLines={1}>
+              {member.name}
+            </Txt>
           </View>
-        </Card>
-      )}
+          <IconButton icon={dark ? Sun : Moon} label={dark ? 'Switch to light mode' : 'Switch to dark mode'} onPress={toggle} bg={c.surface} />
+          {today.length > 0 && <ProgressRing done={done} total={today.length} />}
+        </View>
 
-      {note ? (
-        <Card style={s.note}>
-          <Text style={s.noteFrom}>✨ From the planner</Text>
-          <Text style={s.noteText}>{note}</Text>
-        </Card>
+        <Txt v="caption" style={{ marginTop: 14, marginBottom: 14 }}>
+          {LONG_DAYS[hh.today]}, {dateOf(hh.week, hh.today)}. Here's your day.
+        </Txt>
+
+        {/* ask bar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', height: 52, borderRadius: 26, backgroundColor: c.highlight, paddingLeft: 18, paddingRight: 6, marginBottom: 14 }}>
+          <Pressable onPress={() => router.push('/assistant')} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, height: 52 }} accessibilityRole="button" accessibilityLabel="Ask MoLakaz">
+            <Sparkles size={16} color={c.onHighlight} strokeWidth={2} />
+            <Text style={{ fontFamily: font.regular, fontSize: 13.5, color: c.onHighlight, opacity: 0.75 }}>Ask MoLakaz to move a chore…</Text>
+          </Pressable>
+          <IconButton icon={Mic} label="Speak to MoLakaz" onPress={() => router.push('/voice')} size={40} iconSize={18} bg={dark ? '#161412' : '#FFFFFF'} color={dark ? '#F2EDE6' : '#0E1E3A'} />
+        </View>
+
+        {note ? (
+          <TintCard tone="ai" style={{ flexDirection: 'row', gap: 10, marginBottom: 4 }}>
+            <Sparkles size={14} color={c.ai.strong} strokeWidth={2} style={{ marginTop: 3 }} />
+            <Txt v="body" color={c.ai.ink} style={{ flex: 1, fontSize: 13.5, lineHeight: 21 }}>
+              {note}
+            </Txt>
+          </TintCard>
+        ) : null}
+
+        <Section right={<TextLink label="See week" onPress={() => router.push('/week')} />}>Your chores today</Section>
+
+        {hero && heroChore ? <HeroChore chore={heroChore} task={hero} onLongPress={() => handOff(hero)} /> : null}
+        {rest.map((t) => {
+          const ch = choreOf(t);
+          return ch ? <ChoreCard key={t.id} chore={ch} task={t} onLongPress={t.status === 'done' ? undefined : () => handOff(t)} /> : null;
+        })}
+        {today.length === 0 && (
+          <Card>
+            <Txt v="body" muted>
+              {away ? "You're marked as busy today, so your chores went to others. You'll pick some up later in the week." : 'Nothing for you today. Enjoy!'}
+            </Txt>
+          </Card>
+        )}
+        {today.some((t) => t.status !== 'done') && (
+          <Txt v="caption" center style={{ marginTop: 2 }}>
+            Press and hold a chore if you can't do it today
+          </Txt>
+        )}
+
+        <Button label={away ? "I'm free today after all" : 'Busy today?'} kind="outline" icon={Clock} small onPress={busyToday} loading={busy} style={{ marginTop: 14 }} />
+      </Screen>
+
+      {undo ? (
+        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 110, alignItems: 'center' }} pointerEvents="box-none">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.highlight, borderRadius: 18, paddingLeft: 16, paddingRight: 6, paddingVertical: 6, maxWidth: 528, width: '100%' }}>
+            <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 13, color: c.onHighlight }}>{undo}</Text>
+            <Pressable onPress={() => toggleAway(false)} style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' }} accessibilityRole="button">
+              <Text style={{ fontFamily: font.semibold, fontSize: 13, color: dark ? '#C2410C' : '#F5A66E' }}>Undo</Text>
+            </Pressable>
+          </View>
+        </View>
       ) : null}
-
-      <Section>Your chores today</Section>
-      {today.length ? (
-        today.map((t) => <ChoreRow key={t.id} hh={hh} task={t} />)
-      ) : (
-        <Card>
-          <Muted>{away ? "You're marked as away today, so your chores went to others. You'll pick some up later in the week." : 'Nothing for you today. Enjoy! 🌴'}</Muted>
-        </Card>
-      )}
-
-      <Button
-        kind="ghost"
-        small
-        label={away ? "I'm free today after all" : "Busy today? Hand my chores off"}
-        onPress={toggleAway}
-        loading={busy}
-        style={{ marginTop: 4, alignSelf: 'flex-start' }}
-      />
-
-      {later.length > 0 && (
-        <>
-          <Section>Coming up</Section>
-          {later.map((t) => (
-            <View key={t.id}>
-              <Text style={s.when}>{dayLabel(hh, t.day)}</Text>
-              <ChoreRow hh={hh} task={t} />
-            </View>
-          ))}
-        </>
-      )}
-    </Screen>
+    </View>
   );
 }
-
-const s = StyleSheet.create({
-  date: { fontSize: 14, fontWeight: '800', color: colors.coral, textTransform: 'uppercase', letterSpacing: 1 },
-  hello: { fontSize: 30, fontWeight: '800', color: colors.ink, letterSpacing: -0.5, marginTop: 4, marginBottom: 16 },
-  progress: { backgroundColor: colors.lagoon, borderColor: colors.lagoon },
-  progressText: { color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 10 },
-  track: { height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden' },
-  fill: { height: 10, borderRadius: 5, backgroundColor: colors.sun },
-  note: { backgroundColor: colors.sunSoft, borderColor: colors.sunSoft },
-  noteFrom: { fontSize: 12, fontWeight: '800', color: '#9A6A00', marginBottom: 4 },
-  noteText: { fontSize: 15, color: colors.ink, lineHeight: 21 },
-  when: { fontSize: 12, fontWeight: '800', color: colors.muted, marginBottom: 6, marginLeft: 4 },
-});

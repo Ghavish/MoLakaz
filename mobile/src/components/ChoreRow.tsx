@@ -1,65 +1,93 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Camera, Check } from 'lucide-react-native';
+import { View } from 'react-native';
 
-import type { Household, Task } from '@/lib/types';
-import { colors, memberColor } from '@/lib/theme';
-import { Avatar, Emoji, Pill } from './ui';
+import type { Chore, Household, Task } from '@/lib/types';
+import { radius, useTheme } from '@/lib/theme';
+import { Badge, Button, Card, ChoreIcon, Txt } from './ui';
 
-export function StatusPill({ status }: { status: Task['status'] }) {
-  if (status === 'done') return <Pill label="Done ✓" color={colors.good} bg={colors.goodSoft} />;
-  if (status === 'started') return <Pill label="In progress" color="#9A6A00" bg={colors.sunSoft} />;
-  if (status === 'retry') return <Pill label="Try again" color={colors.coral} bg={colors.coralSoft} />;
-  return <Pill label="To do" color={colors.muted} bg="#EEF1F3" />;
+export function StatusBadge({ status, onHero }: { status: Task['status']; onHero?: boolean }) {
+  const { c, dark } = useTheme();
+  if (status === 'done') return <Badge label="Done" tone="success" />;
+  if (status === 'started') {
+    // light mode hero card: bright amber with navy text
+    return onHero && !dark ? <Badge label="In progress" bg="#FFC145" fg={c.text} /> : <Badge label="In progress" tone="amber" />;
+  }
+  if (status === 'retry') return <Badge label="Try again" tone="coral" />;
+  return <Badge label="To do" bg={c.surfaceRaised} fg={c.textMuted} />;
 }
 
-export function ChoreRow({ hh, task, showWho = false, faded = false }: {
-  hh: Household;
-  task: Task;
-  showWho?: boolean;
-  faded?: boolean;
-}) {
-  const chore = hh.chores.find((c) => c.id === task.chore);
-  const who = hh.members.find((m) => m.id === task.member);
-  if (!chore) return null;
+export function choreMeta(chore: Chore, task: Task) {
+  const bits = [`${chore.minutes} min`];
+  if (chore.check.spot) bits.push(`Photo of the ${chore.check.spot}`);
+  else if (chore.check.look_for[0]) bits.push(`Photo of the ${chore.check.look_for[0]}`);
+  if (task.carried) bits.push('Carried over');
+  if (task.tight) bits.push('Squeezed in');
+  return bits.join(' · ');
+}
 
+export function clock(secs: number) {
+  return new Date(secs * 1000).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+const open = (id: string) => router.push({ pathname: '/chore/[id]', params: { id } });
+const photo = (id: string, step: 'before' | 'after') => router.push({ pathname: '/chore/[id]/photo', params: { id, step } });
+
+// the chore you're in the middle of: the navy hero card in light mode
+export function HeroChore({ chore, task, onLongPress }: { chore: Chore; task: Task; onLongPress?: () => void }) {
+  const { c, dark } = useTheme();
   return (
-    <Pressable
-      onPress={() => router.push({ pathname: '/task/[id]', params: { id: task.id } })}
-      style={({ pressed }) => [s.row, { opacity: faded ? 0.55 : pressed ? 0.75 : 1 }]}
-    >
-      <Emoji icon={chore.icon} />
-      <View style={{ flex: 1 }}>
-        <Text style={[s.name, task.status === 'done' && s.done]} numberOfLines={1}>
-          {chore.name}
-        </Text>
-        <Text style={s.meta} numberOfLines={1}>
-          {chore.minutes} min{task.carried ? ' · carried over' : ''}{task.tight ? ' · squeezed in' : ''}
-        </Text>
-      </View>
-      {showWho && who ? (
-        <View style={s.who}>
-          <Avatar name={who.name} color={memberColor(hh, who.id)} size={26} />
+    <Card onPress={() => open(task.id)} onLongPress={onLongPress} style={{ backgroundColor: c.heroCard, marginBottom: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Txt v="section" color={c.onHero}>
+            {chore.name}
+          </Txt>
+          <Txt v="caption" color={dark ? c.textMuted : 'rgba(255,255,255,0.7)'}>
+            {choreMeta(chore, task)}
+          </Txt>
         </View>
-      ) : null}
-      <StatusPill status={task.status} />
-    </Pressable>
+        <StatusBadge status={task.status} onHero />
+      </View>
+      <Button
+        label={task.status === 'retry' ? 'Retake the after photo' : 'Take the after photo'}
+        icon={Camera}
+        onPress={() => photo(task.id, 'after')}
+        bg={dark ? c.primary : '#FFFFFF'}
+        fg={dark ? c.onPrimary : c.text}
+        small
+        style={{ marginTop: 14, height: 48, borderRadius: 24 }}
+      />
+    </Card>
   );
 }
 
-const s = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  name: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  done: { textDecorationLine: 'line-through', color: colors.muted },
-  meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
-  who: { marginRight: 2 },
-});
+export function ChoreCard({ chore, task, onLongPress }: { chore: Chore; task: Task; onLongPress?: () => void }) {
+  const { c } = useTheme();
+  const done = task.status === 'done';
+  return (
+    <Card
+      small
+      onPress={() => open(task.id)}
+      onLongPress={onLongPress}
+      style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 14 }, done && { backgroundColor: c.surfaceSubtle }]}
+    >
+      <ChoreIcon icon={chore.icon} muted={done} />
+      <View style={{ flex: 1 }}>
+        <Txt v="bodyMedium" strike={done} color={done ? c.textMuted : c.text} numberOfLines={1}>
+          {chore.name}
+        </Txt>
+        <Txt v="caption" numberOfLines={1}>
+          {done ? `${task.check?.manual ? 'Approved' : 'Checked by photo'}${task.done_at ? ' at ' + clock(task.done_at) : ''}` : choreMeta(chore, task)}
+        </Txt>
+      </View>
+      {done ? (
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.success.strong, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Done">
+          <Check size={16} color="#FFFFFF" strokeWidth={2.5} />
+        </View>
+      ) : (
+        <Button label="Start" kind="outline" small onPress={() => photo(task.id, 'before')} style={{ height: 40, borderRadius: radius.chip + 2, paddingHorizontal: 16 }} />
+      )}
+    </Card>
+  );
+}
