@@ -3,11 +3,11 @@ import { Camera, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { Button, Chip, choreTone, Header, Input, ListCard, PersonTile, Screen, Section, Segmented, Sheet, Stepper, TextLink, Txt } from '@/components/ui';
+import { Button, Chip, choreTone, Header, HScroll, Input, ListCard, PersonTile, Screen, Section, Segmented, Sheet, Stepper, TextLink, Txt } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useFlow } from '@/lib/flow';
 import { useHousehold, useSession } from '@/lib/session';
-import { DAYS, font, freeLabel, personTone, radius, tell, timesLabel, useTheme } from '@/lib/theme';
+import { DAYS, font, freeLabel, personTone, radius, tell, timeLabel, timesLabel, useTheme } from '@/lib/theme';
 import type { Chore, Member } from '@/lib/types';
 
 const QUICK = [
@@ -150,7 +150,8 @@ export default function Review() {
                     {x.name}
                   </Txt>
                   <Txt v="caption">
-                    {timesLabel(x.per_week)} · {x.minutes} min
+                    {timesLabel(x.per_week)} · {x.when && x.when !== 'anytime' ? timeLabel(x.when) + ' · ' : ''}
+                    {x.minutes} min
                   </Txt>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: t.tint, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, maxWidth: 150 }}>
@@ -272,6 +273,15 @@ export default function Review() {
                 { value: '3', label: 'Hard' },
               ]}
             />
+            <Txt v="caption" style={{ marginTop: 16, marginBottom: 6 }}>
+              When
+            </Txt>
+            <HScroll>
+              {/* a set clock time (like the bins at 7:00) stays as its own chip */}
+              {[...(editingChore.when?.includes(':') ? [editingChore.when] : []), 'anytime', 'morning', 'afternoon', 'evening'].map((w) => (
+                <Chip key={w} label={timeLabel(w)} selected={(editingChore.when ?? 'anytime') === w} onPress={() => editChore(editingChore.id, { when: w })} />
+              ))}
+            </HScroll>
             <Txt v="section" style={{ marginTop: 22, marginBottom: 6 }}>
               Photo check
             </Txt>

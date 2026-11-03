@@ -44,14 +44,17 @@ Improve the draft only where it actually helps the family:
 - fair means chore time is proportional to free time, not equal. kids get lighter, age-appropriate chores
 - spread the same chore around instead of giving it to one person every day, unless the notes say otherwise
 - only move tasks that aren't locked, and never to a day before day TODAY. days are 0=Mon ... 6=Sun
+- each task has a time ("07:00", "morning", "afternoon" or "evening"). if the notes say when someone is free
+  (like "Dad's home after 6"), add "time": "18:30" to that move. otherwise leave time out
 Reply with JSON only, nothing else:
-{"moves": [{"task": "<task id>", "member": "<member id>", "day": 0}],
+{"moves": [{"task": "<task id>", "member": "<member id>", "day": 0, "time": "18:30"}],
  "messages": {"<member id>": "one short, warm line about their week, mention why if you moved something for them"},
  "summary": "one sentence on how the week was split"}
 Leave "moves" empty if the draft is already good."""
 
 
 def improve(hh, today):
+    import chores as chore_lib
     import planner
 
     chores = {c["id"]: c for c in hh["chores"]}
@@ -72,8 +75,8 @@ def improve(hh, today):
             "dislikes": [chores[d]["name"] for d in m.get("dislikes", []) if d in chores],
         } for m in hh["members"]],
         "chores": [{k: c[k] for k in ("id", "name", "minutes", "effort", "min_age")} for c in hh["chores"]],
-        "draft": [{"task": t["id"], "chore": t["chore"], "member": t["member"], "day": t["day"],
-                   "locked": t["id"] not in movable} for t in hh["tasks"]],
+        "draft": [{"task": t["id"], "chore": t["chore"], "member": t["member"], "day": t["day"], "time": t["time"],
+                   "locked": t["id"] not in movable} for t in planner.with_times(hh, hh["tasks"])],
         "last_week": hh.get("last_week", {}),
     }
     reply = ask(PLAN_RULES.replace("TODAY", str(today)), payload)
@@ -89,6 +92,9 @@ def improve(hh, today):
         if day < today or not planner.can_do(m, chores[t["chore"]], t) or planner.free_on(m, day) == 0:
             continue
         t["member"], t["day"] = m["id"], day
+        when = chore_lib.clean_when(mv.get("time"))
+        if when != "anytime":
+            t["time"], t["time_for"] = when, m["id"]
 
     # muse gets the final say on the details, but it can't make the week less fair
     before = planner.fairness(hh, hh["tasks"])
@@ -111,10 +117,11 @@ Chores: name, minutes per go, effort 1-3, times per week (1-7), min_age, and how
   check.mode "clear" when stuff should be gone afterwards (dishes, clutter, trash) or "show" when something should appear (folded clothes, cooked food)
   check.look_for: 1-3 short noun phrases a segmentation model can find in a photo, like "dirty dish", "toy", "folded clothes"
   check.spot: one object that's in both the before and after photo so we know it's the same place, like "sink" or "sofa", or "" if there isn't one
+  when: a clock time if the chore has one ("07:00" for the bins), "morning", "afternoon", "evening", or "anytime"
 If they don't list chores, pick the usual ones for a home like theirs.
 Reply with JSON only:
 {"members": [{"name": "", "age": 0, "free": [0, 0, 0, 0, 0, 0, 0], "dislikes": ["chore name"]}],
- "chores": [{"name": "", "minutes": 0, "effort": 1, "per_week": 1, "min_age": 0, "check": {"mode": "clear", "look_for": [""], "spot": ""}}],
+ "chores": [{"name": "", "minutes": 0, "effort": 1, "per_week": 1, "min_age": 0, "when": "anytime", "check": {"mode": "clear", "look_for": [""], "spot": ""}}],
  "notes": "anything else the weekly planner should know, like exams or shifts"}"""
 
 
@@ -134,8 +141,9 @@ CHORE_RULES = """A family added a chore to their chore app. Guess sensible defau
 check.mode is "clear" if stuff should be gone in the after photo, "show" if something should appear.
 check.look_for is 1-3 short noun phrases a segmentation model can find in a photo.
 check.spot is one object visible in both photos (same place), or "".
+when is a clock time if the chore has a natural one ("07:00"), "morning", "afternoon", "evening", or "anytime".
 Reply with JSON only:
-{"minutes": 15, "effort": 2, "per_week": 2, "min_age": 8, "check": {"mode": "clear", "look_for": ["..."], "spot": "..."}}"""
+{"minutes": 15, "effort": 2, "per_week": 2, "min_age": 8, "when": "anytime", "check": {"mode": "clear", "look_for": ["..."], "spot": "..."}}"""
 
 
 def guess_chore(name):

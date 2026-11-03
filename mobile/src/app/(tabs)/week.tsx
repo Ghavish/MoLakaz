@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Chip, FairnessBars, HScroll, IconButton, PersonTile, Screen, Sheet, TextLink, TintCard, Txt } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useHousehold } from '@/lib/session';
-import { DAYS, dayDate, personColourOrder, personTone, radius, shiftWeek, useTheme, weekName, weekRange } from '@/lib/theme';
+import { DAYS, dayDate, personColourOrder, personTone, radius, shiftWeek, timeLabel, useTheme, weekName, weekRange } from '@/lib/theme';
 import type { WeekView } from '@/lib/types';
 import { useRefresher } from '@/lib/useRefresher';
 
@@ -169,6 +169,7 @@ export default function Week() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Txt v="caption" style={{ fontSize: 11 }}>
+                        {t.time ? `${timeLabel(t.time)} · ` : ''}
                         {chore.minutes} min
                         {t.status === 'started' ? ' · in progress' : t.status === 'retry' ? ' · needs a retake' : missed ? ' · not done' : ''}
                       </Txt>

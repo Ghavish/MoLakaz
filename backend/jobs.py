@@ -22,6 +22,11 @@ def send_push(messages):
             print("push failed:", e)
 
 
+def when(time):
+    label = planner.time_label(time)
+    return label if ":" in time else label.lower()
+
+
 def remind(hh, evening=False):
     today = planner.today_index(hh["tz"])
     names = {c["id"]: c["name"] for c in hh["chores"]}
@@ -32,7 +37,8 @@ def remind(hh, evening=False):
         mine = [t for t in hh["tasks"] if t["member"] == m["id"] and t["day"] == today and t["status"] != "done"]
         if not mine:
             continue
-        what = ", ".join(names.get(t["chore"], "a chore") for t in mine)
+        # "Take out the trash (7:00 am), Wash the dishes (evening)"
+        what = ", ".join(f"{names.get(t['chore'], 'a chore')} ({when(t['time'])})" for t in planner.with_times(hh, mine))
         if evening:
             title = f"Still on your list, {m['name']}"
             body = what + ". Snap a photo when it's done 📸"

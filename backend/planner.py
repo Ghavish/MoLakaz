@@ -239,6 +239,48 @@ def board(hh):
     return out
 
 
+# rough clock for the parts of the day, just to put a day's chores in order
+PART_AT = {"morning": 8 * 60, "afternoon": 14 * 60, "evening": 18 * 60 + 30}
+
+
+def time_of(t, chore, m=None):
+    # muse spark can pin a time on one person's chore ("dad's only free after 6"). it stops counting if the chore changes hands
+    if t.get("time") and t.get("time_for") == t["member"]:
+        return t["time"]
+    when = (chore or {}).get("when") or "anytime"
+    if when != "anytime":
+        return when
+    # no set time: weekends get the morning, on weekdays kids do it after school and grown ups after work
+    if t["day"] >= 5:
+        return "morning"
+    if m and m.get("age", 30) < 18:
+        return "afternoon"
+    return "evening"
+
+
+def time_order(when):
+    if ":" in when:
+        h, mins = when.split(":")
+        return int(h) * 60 + int(mins)
+    return PART_AT.get(when, 12 * 60)
+
+
+def time_label(when):
+    # "07:00" -> "7:00 am", "evening" -> "Evening"
+    if ":" not in when:
+        return when.capitalize()
+    h, mins = (int(x) for x in when.split(":"))
+    return f"{(h - 1) % 12 + 1}:{mins:02d} {'am' if h < 12 else 'pm'}"
+
+
+def with_times(hh, tasks):
+    # copies of the tasks with their time of day filled in, in the order they happen
+    chores = {c["id"]: c for c in hh["chores"]}
+    people = {m["id"]: m for m in hh["members"]}
+    out = [{**t, "time": time_of(t, chores.get(t["chore"]), people.get(t["member"]))} for t in tasks]
+    return sorted(out, key=lambda t: (t["day"], time_order(t["time"])))
+
+
 def plan(hh, ai=False):
     tz = hh.get("tz", TZ)
     if hh.get("week") != week_start(tz):
@@ -329,7 +371,7 @@ def week_snapshot(hh, kind="past"):
     return {
         "kind": kind,
         "week": hh.get("week"),
-        "tasks": [{k: t.get(k) for k in ("id", "chore", "member", "day", "status")} for t in tasks],
+        "tasks": [{k: t.get(k) for k in ("id", "chore", "member", "day", "status", "time")} for t in with_times(hh, tasks)],
         "board": board(hh),
         "fairness": fairness(hh, tasks),
         "summary": hh.get("summary", ""),

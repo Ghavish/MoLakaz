@@ -107,6 +107,7 @@ def view(hh):
     out = dict(hh)
     out.pop("undo", None)  # undo snapshots stay on the server
     out["members"] = [{k: v for k, v in m.items() if k != "push"} for m in hh["members"]]
+    out["tasks"] = planner.with_times(hh, hh.get("tasks", []))
     out["today"] = planner.today_index(hh["tz"])
     out["board"] = planner.board(hh)
     out["fairness"] = planner.fairness(hh, hh.get("tasks", []))
@@ -145,6 +146,23 @@ def saved():
 
 def photo_url(name):
     return f"/photos/{name}?v={int(time.time())}"
+
+
+def chore_name(hh, t):
+    return next((c["name"] for c in hh["chores"] if c["id"] == t["chore"]), "a chore")
+
+
+def notify(hh, member_ids, title, body, tid):
+    import jobs
+
+    tokens = [m["push"] for m in hh["members"] if m["id"] in member_ids and m.get("push")]
+    jobs.send_push([{"to": tok, "title": title, "body": body, "sound": "default", "data": {"task": tid}} for tok in tokens])
+
+
+def clear_asks(t):
+    # a new photo or a decision from the admin answers any retake or "can you check" that was waiting
+    for k in ("retake", "review", "review_by"):
+        t.pop(k, None)
 
 
 @web.get("/")
@@ -271,6 +289,7 @@ def before_photo(hid: str, tid: str, member_id: str = Form(...), photo: UploadFi
     keep_photo(name, photo.file.read())
     saved()
     t.update({"status": "started", "before": photo_url(name), "after": None, "check": None, "by": member_id})
+    clear_asks(t)
     save(hh)
 
     # start the gpu up while they're cleaning, so the after photo check is quick
@@ -319,6 +338,7 @@ def after_photo(hid: str, tid: str, member_id: str = Form(...), photo: UploadFil
     t = task(hh, tid)
     t["after"] = photo_url(name)
     t["check"] = res
+    clear_asks(t)
     if res["verdict"] == "done":
         t["status"] = "done"
         t["done_at"] = time.time()
@@ -338,7 +358,50 @@ def approve(hid: str, tid: str, body: Who):
     t["done_at"] = time.time()
     t["check"] = {**(t.get("check") or {}), "verdict": "done", "manual": True,
                   "reason": f"Approved by {boss['name']}"}
+    clear_asks(t)
     save(hh)
+    return view(hh)
+
+
+@web.post("/households/{hid}/tasks/{tid}/retake")
+def retake(hid: str, tid: str, body: Who):
+    hh = load(hid)
+    boss = member(hh, body.member_id, admin=True)
+    t = task(hh, tid)
+    if not t.get("before"):
+        raise HTTPException(400, "There's no photo to retake yet")
+
+    # back to needing a new after photo, even if the check had passed
+    clear_asks(t)
+    t["status"] = "retry"
+    t.pop("done_at", None)
+    if t.get("check"):
+        t["check"] = {**t["check"], "verdict": "retry", "manual": False,
+                      "reason": f"{boss['name']} asked for a new after photo."}
+    t["retake"] = {"by": boss["id"], "at": time.time()}
+    save(hh)
+
+    if t["member"] != boss["id"]:
+        name = chore_name(hh, t)
+        notify(hh, [t["member"]], "Retake the after photo 📸", f"{boss['name']} asked you to retake the photo for {name}.", tid)
+    return view(hh)
+
+
+@web.post("/households/{hid}/tasks/{tid}/review")
+def review(hid: str, tid: str, body: Who):
+    hh = load(hid)
+    asker = member(hh, body.member_id)
+    t = task(hh, tid)
+    if not t.get("check"):
+        raise HTTPException(400, "There's no photo check to look at yet")
+
+    # a flag, not a status: it works for checks that passed too ("not right?")
+    t["review"] = True
+    t["review_by"] = asker["id"]
+    save(hh)
+
+    admins = [m["id"] for m in hh["members"] if m.get("admin") and m["id"] != asker["id"]]
+    notify(hh, admins, "Can you check a chore?", f"{asker['name']} asked you to check {chore_name(hh, t)}.", tid)
     return view(hh)
 
 

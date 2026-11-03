@@ -12,6 +12,8 @@ export type Chore = {
   effort: number;
   per_week: number;
   min_age: number;
+  // "07:00", "morning", "afternoon", "evening" or "anytime" (the planner picks)
+  when?: string;
   check: Check;
 };
 
@@ -52,6 +54,13 @@ export type Task = {
   check?: CheckResult | null;
   by?: string;
   done_at?: number;
+  // time of day the planner gave it, like "07:00" or "evening"
+  time?: string;
+  // someone asked the admin to look at the photo check
+  review?: boolean;
+  review_by?: string;
+  // the admin asked for a new after photo
+  retake?: { by: string; at: number };
 };
 
 export type BoardRow = {
@@ -97,7 +106,7 @@ export type AssistantChanges = {
 export type WeekView = {
   kind: 'past' | 'current' | 'next';
   week: string;
-  tasks: Pick<Task, 'id' | 'chore' | 'member' | 'day' | 'status'>[];
+  tasks: Pick<Task, 'id' | 'chore' | 'member' | 'day' | 'status' | 'time'>[];
   board: BoardRow[];
   fairness: number;
   summary?: string;

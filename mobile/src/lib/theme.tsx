@@ -190,6 +190,15 @@ export function freeLabel(mins: number) {
   return `${h ? h + 'h' : ''}${h && m ? ' ' : ''}${m ? m + 'm' : ''} a day`;
 }
 
+// "07:00" -> "7:00 am", "evening" -> "Evening"
+export function timeLabel(when?: string) {
+  if (!when || when === 'anytime') return 'Any time';
+  const m = when.match(/^(\d{2}):(\d{2})$/);
+  if (!m) return when[0].toUpperCase() + when.slice(1);
+  const h = Number(m[1]);
+  return `${((h + 11) % 12) + 1}:${m[2]} ${h < 12 ? 'am' : 'pm'}`;
+}
+
 export function timesLabel(n: number) {
   if (n >= 7) return 'Every day';
   if (n === 1) return 'Once a week';
