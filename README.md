@@ -64,10 +64,10 @@ pip install -r requirements.txt
 modal setup                     # log in once
 ```
 
-Muse Spark key: the hackathon's Baseten key for Muse Spark Open (`meta-models/muse-spark-open-1026` at `https://inference.baseten.co/v1`, both the defaults in `backend/muse.py`). Check it works with `python try_muse.py`. It's read from your shell when you deploy:
+Muse Spark key: the hackathon's Baseten key for Muse Spark Open (`meta-models/muse-spark-open-1026` at `https://inference.baseten.co/v1`, both the defaults in `backend/muse.py`). Put it in `backend/.env` (copy `backend/.env.example`; the file is never committed), then check it works with `python try_muse.py`. The local backend and `modal deploy` both read that file, and a key set in your terminal wins over it:
 
 ```bash
-export MODEL_API_KEY=...        # powershell: $env:MODEL_API_KEY="..."
+cp .env.example .env            # then fill in MODEL_API_KEY
 modal deploy modal_app.py
 ```
 

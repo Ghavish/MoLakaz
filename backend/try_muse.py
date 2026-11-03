@@ -1,11 +1,15 @@
-# check your muse spark key works: MODEL_API_KEY=... python try_muse.py
+# check your muse spark key works: put MODEL_API_KEY in backend/.env, then python try_muse.py
 import os
 import sys
 
-import muse
+import envfile
+
+envfile.load()
+
+import muse  # noqa: E402
 
 if not muse.ready():
-    sys.exit("Set MODEL_API_KEY first (powershell: $env:MODEL_API_KEY=\"...\")")
+    sys.exit("Put MODEL_API_KEY=... in backend/.env first (copy .env.example to .env)")
 
 from openai import OpenAI
 

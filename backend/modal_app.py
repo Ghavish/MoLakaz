@@ -2,6 +2,12 @@ import os
 
 import modal
 
+# on your laptop, `modal deploy` takes the keys from backend/.env (then from your terminal) and stores them on modal
+if modal.is_local():
+    import envfile
+
+    envfile.load()
+
 app = modal.App("molakaz")
 
 # sam 3.1 weights converted to the transformers Sam3Model format (not gated).
@@ -10,14 +16,14 @@ SAM_MODEL = os.environ.get("SAM_MODEL", "unsloth/sam3.1")
 
 
 def env_secret(*names):
-    # takes keys from your shell when you deploy, skips any you haven't set
+    # takes keys from backend/.env or your terminal when you deploy, skips any you haven't set
     return modal.Secret.from_dict({n: os.environ[n] for n in names if os.environ.get(n)})
 
 
 web_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("fastapi[standard]", "openai", "httpx", "pillow", "tzdata")
-    .add_local_python_source("api", "assistant", "chores", "jobs", "muse", "planner", "seed_demo", "store")
+    .add_local_python_source("api", "assistant", "chores", "envfile", "jobs", "muse", "planner", "seed_demo", "store")
 )
 
 sam_image = (

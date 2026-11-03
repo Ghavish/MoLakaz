@@ -10,11 +10,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-import assistant
-import chores as chore_lib
-import muse
-import planner
-import store
+import envfile
+
+envfile.load()  # backend/.env, before anything reads the keys
+
+import assistant  # noqa: E402
+import chores as chore_lib  # noqa: E402
+import muse  # noqa: E402
+import planner  # noqa: E402
+import store  # noqa: E402
 
 web = FastAPI(title="MoLakaz")
 web.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
