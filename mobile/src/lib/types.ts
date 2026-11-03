@@ -51,6 +51,7 @@ export type Task = {
   after?: string | null;
   check?: CheckResult | null;
   by?: string;
+  done_at?: number;
 };
 
 export type BoardRow = {

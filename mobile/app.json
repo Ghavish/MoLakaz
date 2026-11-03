@@ -6,13 +6,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FBF6EE",
+        "backgroundColor": "#F2F3F6",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -30,6 +30,14 @@
         {
           "cameraPermission": "MoLakaz uses the camera so you can snap a before and after photo of a chore.",
           "photosPermission": "MoLakaz lets you pick a before or after photo of a chore from your gallery."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MoLakaz uses the camera so you can snap a before and after photo of a chore.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "expo-notifications",

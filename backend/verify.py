@@ -3,7 +3,8 @@ import io
 import numpy as np
 from PIL import Image, ImageOps
 
-RED = (239, 68, 68)
+# mess is painted orange and clean things green, which is easier to tell apart for colour-blind people than red/green
+MESS = (217, 105, 42)
 GREEN = (34, 197, 94)
 
 
@@ -116,7 +117,7 @@ def run(model, processor, before_bytes, after_bytes, check):
     a_mask = union(a, look, after)
     result = judge(b, a, look, spot, mode, float(b_mask.mean()), float(a_mask.mean()))
 
-    color = GREEN if mode == "show" else RED
+    color = GREEN if mode == "show" else MESS
     result["before_marked"] = mark(before, b_mask, color)
     result["after_marked"] = mark(after, a_mask, color)
     return result
