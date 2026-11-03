@@ -17,7 +17,7 @@ def env_secret(*names):
 web_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("fastapi[standard]", "openai", "httpx", "pillow", "tzdata")
-    .add_local_python_source("api", "chores", "jobs", "muse", "planner", "store")
+    .add_local_python_source("api", "assistant", "chores", "jobs", "muse", "planner", "store")
 )
 
 sam_image = (

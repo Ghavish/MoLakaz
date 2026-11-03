@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import assistant
 import chores as chore_lib
 import muse
 import planner
@@ -51,6 +52,17 @@ class Text(BaseModel):
     text: str
 
 
+class Chat(BaseModel):
+    member_id: str
+    text: str
+    history: list[dict] = []
+
+
+class UndoChange(BaseModel):
+    member_id: str
+    change_id: str
+
+
 class PushToken(BaseModel):
     member_id: str
     token: str
@@ -89,6 +101,7 @@ def task(hh, tid):
 
 def view(hh):
     out = dict(hh)
+    out.pop("undo", None)  # undo snapshots stay on the server
     out["members"] = [{k: v for k, v in m.items() if k != "push"} for m in hh["members"]]
     out["today"] = planner.today_index(hh["tz"])
     out["board"] = planner.board(hh)
@@ -332,6 +345,43 @@ def push_token(hid: str, body: PushToken):
     m["push"] = body.token
     save(hh)
     return {"ok": True}
+
+
+@web.post("/households/{hid}/assistant")
+def assistant_chat(hid: str, body: Chat):
+    hh = load(hid)
+    member(hh, body.member_id)
+    text = body.text.strip()[:1000]
+    if not text:
+        raise HTTPException(400, "Say something first")
+    if not muse.ready():
+        return {"reply": "I need Muse Spark to answer, and it isn't switched on for this server yet (MODEL_API_KEY). "
+                         "You can still hand chores off from Today.", "changes": None, "household": view(hh)}
+    try:
+        out = assistant.ask(hh, body.member_id, text, body.history)
+    except Exception as e:
+        print("assistant failed:", e)
+        raise HTTPException(502, "The assistant couldn't answer right now. Try again in a moment.")
+
+    # muse can take a few seconds, so apply its actions to a fresh copy and don't stomp on other changes
+    hh = load(hid)
+    member(hh, body.member_id)
+    changes, refused = assistant.apply(hh, body.member_id, out["actions"])
+    if changes:
+        save(hh)
+    reply = assistant.explain_refusal(out["reply"], refused, bool(changes))
+    return {"reply": reply, "changes": changes, "household": view(hh)}
+
+
+@web.post("/households/{hid}/assistant/undo")
+def assistant_undo(hid: str, body: UndoChange):
+    hh = load(hid)
+    member(hh, body.member_id)
+    problem = assistant.undo(hh, body.member_id, body.change_id)
+    if problem:
+        raise HTTPException(409, problem)
+    save(hh)
+    return view(hh)
 
 
 @web.post("/ai/setup")

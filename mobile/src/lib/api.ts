@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import type { Chore, CheckResult, Household, Member } from './types';
+import type { AssistantChanges, Chore, CheckResult, Household, Member } from './types';
 
 // your modal url (https://<workspace>--molakaz-web.modal.run) or the local backend, see .env
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -86,5 +86,9 @@ export const api = {
   readHousehold: (text: string) => post<Draft>('/ai/setup', { text }),
   suggestChore: (name: string) => post<Chore>('/ai/chore', { text: name }),
   transcribe,
+  assistant: (hid: string, me: string, text: string, history: { from: 'me' | 'assistant'; text: string }[]) =>
+    post<{ reply: string; changes: AssistantChanges | null; household: Household }>(`/households/${hid}/assistant`, { member_id: me, text, history }),
+  assistantUndo: (hid: string, me: string, changeId: string) =>
+    post<Household>(`/households/${hid}/assistant/undo`, { member_id: me, change_id: changeId }),
   warmTranscriber: () => post<{ ok: boolean }>('/transcribe/warm', {}),
 };

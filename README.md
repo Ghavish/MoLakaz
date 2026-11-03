@@ -50,6 +50,8 @@ Muse Spark also reads a plain-English description of the household on setup ("Mu
 
 Rebalancing: "Busy today?" moves your chores for the day to whoever's free. "Can't do it today" hands a single chore off. Missed daily chores get dropped, missed weekly ones roll over. Load evens back out over the rest of the week.
 
+The Assistant tab (`backend/assistant.py`, `POST /households/{id}/assistant`) sends Muse Spark the week and your message. It answers questions straight from the plan, and for changes it replies with actions (move, swap, add a planner note, busy today). Every action is checked against the planner's rules before anything moves: only chores still to do, no past days, old enough, free time that day, nobody pushed past their free time, and fairness can't drop more than 15 points. The reply comes back with a summary card and an Undo for your latest change.
+
 ## Running it
 
 ### Backend on Modal

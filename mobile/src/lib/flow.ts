@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
 import type { Draft } from './api';
-import type { ActionSummary } from './mocks';
+import type { AssistantChanges } from './types';
 
-export type ChatMessage = { id: string; from: 'me' | 'assistant'; text: string; action?: ActionSummary; undone?: boolean };
+export type ChatMessage = { id: string; from: 'me' | 'assistant'; text: string; action?: AssistantChanges; undone?: boolean };
 
 // short-lived state passed between screens, not saved on the device
 type Flow = {

@@ -82,3 +82,12 @@ export type Household = {
   messages?: Record<string, string>;
   summary?: string;
 };
+
+// what the assistant changed, for the summary card under its reply
+export type AssistantChanges = {
+  id: string;
+  moved: string[];
+  added: string[];
+  notes: string[];
+  fairness?: { from: number; to: number };
+};
