@@ -163,6 +163,20 @@ export function weekRange(week: string) {
     : `${a.getDate()} ${month(a)} – ${b.getDate()} ${month(b)}`;
 }
 
+export function shiftWeek(week: string, weeks: number) {
+  const d = dayDate(week, weeks * 7);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// "This week", "Last week", "Next week", or "3 weeks ago"
+export function weekName(week: string, current: string) {
+  const diff = Math.round((dayDate(week, 0).getTime() - dayDate(current, 0).getTime()) / (7 * 864e5));
+  if (diff === 0) return 'This week';
+  if (diff === -1) return 'Last week';
+  if (diff === 1) return 'Next week';
+  return diff < 0 ? `${-diff} weeks ago` : `In ${diff} weeks`;
+}
+
 export function dayLabel(hh: Household, day: number) {
   if (day === hh.today) return 'Today';
   if (day === hh.today + 1) return 'Tomorrow';

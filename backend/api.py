@@ -20,7 +20,7 @@ web = FastAPI(title="MoLakaz")
 web.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # modal_app.py plugs the gpu calls in here. running locally they stay None
-hooks = {"verify": None, "warm": None, "saved": None, "transcribe": None, "warm_ears": None}
+hooks = {"verify": None, "warm": None, "saved": None, "reload": None, "transcribe": None, "warm_ears": None}
 
 # whisper on the cpu when running locally without modal, loaded the first time someone talks
 _local_asr = None
@@ -347,6 +347,19 @@ def push_token(hid: str, body: PushToken):
     return {"ok": True}
 
 
+@web.get("/households/{hid}/weeks/{week}")
+def get_week(hid: str, week: str):
+    hh = load(hid)
+    if week == hh.get("week"):
+        return planner.week_snapshot(hh, "current")
+    if week == planner.next_week_start(hh["tz"]):
+        return planner.preview_next(hh) if hh.get("chores") else {**planner.week_snapshot({**hh, "tasks": []}, "next"), "week": week}
+    saved = store.get(f"week:{hid}:{week}")
+    if not saved:
+        raise HTTPException(404, "That week isn't saved")
+    return saved
+
+
 @web.post("/households/{hid}/assistant")
 def assistant_chat(hid: str, body: Chat):
     hh = load(hid)
@@ -448,6 +461,12 @@ def transcribe_warm():
 @web.get("/photos/{name}")
 def photo(name: str):
     path = store.PHOTOS / Path(name).name
+    if not path.exists() and hooks["reload"]:
+        # written by another container (like the demo seed), so pick up the latest volume
+        try:
+            hooks["reload"]()
+        except Exception as e:
+            print("photo reload failed:", e)
     if not path.exists():
         raise HTTPException(404, "No such photo")
     return FileResponse(path, media_type="image/jpeg")

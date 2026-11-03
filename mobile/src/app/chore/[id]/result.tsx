@@ -102,7 +102,7 @@ export default function Result() {
           </Txt>
           <Txt v="caption">
             {check.reason}
-            {ok && who ? ` Nice one, ${who.id === me ? 'you' : who.name}.` : ''}
+            {ok && who ? ` Nice one, ${who.name}.` : ''}
           </Txt>
         </View>
       </View>

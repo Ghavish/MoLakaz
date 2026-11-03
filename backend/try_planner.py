@@ -9,8 +9,8 @@ hh = {
     "members": [
         planner.clean_member({"name": "Mum", "age": 44, "free": [40, 40, 40, 40, 40, 150, 120], "admin": True}),
         planner.clean_member({"name": "Dad", "age": 47, "free": [30, 30, 30, 30, 60, 150, 150]}),
-        planner.clean_member({"name": "Ali", "age": 20, "free": [60, 20, 60, 0, 60, 120, 120]}),
-        planner.clean_member({"name": "Zara", "age": 9, "free": [20, 20, 20, 20, 20, 60, 60]}),
+        planner.clean_member({"name": "John", "age": 20, "free": [60, 20, 60, 0, 60, 120, 120]}),
+        planner.clean_member({"name": "Sara", "age": 9, "free": [20, 20, 20, 20, 20, 60, 60]}),
     ],
     "chores": [chores.clean({"icon": k}) for k in ["dishes", "table", "sweep", "trash", "tidy", "laundry", "bathroom", "yard"]],
     "tasks": [],
@@ -51,8 +51,8 @@ assert planner.fairness(hh, hh["tasks"]) > 0.85
 bathroom = [t for t in hh["tasks"] if chore_names[t["chore"]] == "Clean the bathroom"]
 assert all(names[t["member"]] != "Dad" for t in bathroom), "dad got the bathroom even though he hates it"
 
-# wednesday: ali says he's away, tuesday's stuff wasn't done
-print("--- wednesday, ali is away today, nobody did tuesday's chores ---")
+# wednesday: john says he's away, tuesday's stuff wasn't done
+print("--- wednesday, john is away today, nobody did tuesday's chores ---")
 planner.today_index = lambda tz=planner.TZ: 2
 for t in hh["tasks"]:
     if t["day"] == 0:
@@ -60,16 +60,16 @@ for t in hh["tasks"]:
 hh["members"][2]["away"] = [2]
 planner.rebalance(hh)
 show(hh)
-assert not [t for t in hh["tasks"] if t["day"] == 2 and names[t["member"]] == "Ali"], "ali still has chores on his away day"
+assert not [t for t in hh["tasks"] if t["day"] == 2 and names[t["member"]] == "John"], "john still has chores on his away day"
 assert not [t for t in hh["tasks"] if t["day"] == 1 and t["status"] != "done"], "tuesday leftovers weren't moved"
 
 # zara skips a chore, it should go to someone else
-z = next(t for t in hh["tasks"] if names[t["member"]] == "Zara" and t["day"] >= 2)
+z = next(t for t in hh["tasks"] if names[t["member"]] == "Sara" and t["day"] >= 2)
 z["not"] = [z["member"]]
 planner.rebalance(hh)
 moved = next(t for t in hh["tasks"] if t["id"] == z["id"])
 print("zara skipped", chore_names[z["chore"]], "-> now", names[moved["member"]], planner.DAYS[moved["day"]])
-assert names[moved["member"]] != "Zara"
+assert names[moved["member"]] != "Sara"
 
 # next week rotates
 planner.week_start = lambda tz=planner.TZ: "2099-01-05"

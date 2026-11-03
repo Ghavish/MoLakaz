@@ -17,7 +17,7 @@ def env_secret(*names):
 web_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("fastapi[standard]", "openai", "httpx", "pillow", "tzdata")
-    .add_local_python_source("api", "assistant", "chores", "jobs", "muse", "planner", "store")
+    .add_local_python_source("api", "assistant", "chores", "jobs", "muse", "planner", "seed_demo", "store")
 )
 
 sam_image = (
@@ -95,9 +95,19 @@ def web():
     api.hooks["verify"] = lambda before, after, check: Verifier().check.remote(before, after, check)
     api.hooks["warm"] = lambda: Verifier().warm.spawn()
     api.hooks["saved"] = photos.commit
+    api.hooks["reload"] = photos.reload
     api.hooks["transcribe"] = lambda audio: Transcriber().transcribe.remote(audio)
     api.hooks["warm_ears"] = lambda: Transcriber().warm.spawn()
     return api.web
+
+
+# load (or reset) the demo household: modal run modal_app.py::seed
+@app.function(image=web_image, volumes={"/photos": photos}, timeout=120)
+def seed():
+    import seed_demo
+
+    seed_demo.run()
+    photos.commit()
 
 
 # 6:30 every morning: plan the new week on mondays, otherwise carry over missed chores, then remind everyone

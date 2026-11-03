@@ -81,6 +81,7 @@ export type Household = {
   plan_by?: string;
   messages?: Record<string, string>;
   summary?: string;
+  past_weeks?: string[];
 };
 
 // what the assistant changed, for the summary card under its reply
@@ -90,4 +91,16 @@ export type AssistantChanges = {
   added: string[];
   notes: string[];
   fairness?: { from: number; to: number };
+};
+
+// a saved past week, or a preview of next week, for the week picker
+export type WeekView = {
+  kind: 'past' | 'current' | 'next';
+  week: string;
+  tasks: Pick<Task, 'id' | 'chore' | 'member' | 'day' | 'status'>[];
+  board: BoardRow[];
+  fairness: number;
+  summary?: string;
+  members: { id: string; name: string }[];
+  chores: { id: string; name: string; icon: string; minutes: number }[];
 };

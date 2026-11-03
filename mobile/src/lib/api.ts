@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import type { AssistantChanges, Chore, CheckResult, Household, Member } from './types';
+import type { AssistantChanges, Chore, CheckResult, Household, Member, WeekView } from './types';
 
 // your modal url (https://<workspace>--molakaz-web.modal.run) or the local backend, see .env
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -66,6 +66,7 @@ export const api = {
     post<{ household: Household; me: string }>('/households', { name, your_name: yourName }),
   join: (code: string) => call<Household>(`/join/${encodeURIComponent(code.trim())}`),
   get: (hid: string) => call<Household>(`/households/${hid}`),
+  week: (hid: string, week: string) => call<WeekView>(`/households/${hid}/weeks/${week}`),
   setup: (hid: string, me: string, members: Member[], chores: Chore[], notes: string) =>
     call<Household>(`/households/${hid}/setup`, {
       method: 'PUT',

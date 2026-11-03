@@ -15,6 +15,6 @@ r = client.chat.completions.create(model=muse.MODEL, messages=[{"role": "user", 
 print("chat:", r.choices[0].message.content)
 
 print("reading a household description...")
-draft = muse.read_household("Mum works 8-5, Dad is free after 6, Zara is 9. We need the dishes every night and the floors swept twice a week.")
+draft = muse.read_household("Mum works 8-5, Dad is free after 6, Sara is 9. We need the dishes every night and the floors swept twice a week.")
 print("people:", [m["name"] for m in draft["members"]])
 print("chores:", [c["name"] for c in draft["chores"]])

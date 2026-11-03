@@ -44,9 +44,9 @@ Weights: `unsloth/sam3.1`, which is SAM 3.1 converted to transformers' `Sam3Mode
 2. Biggest jobs first, each slot goes to whoever ends up with the lowest *(chore minutes × effort) / free minutes this week*, and only if they have the time free that day and are old enough. Small nudges: rotate who gets what (last week counts too), avoid dislikes, don't drift more than 2 days, never the same chore twice on one day.
 3. Fairness score = Jain's index over everyone's load/free-time ratio. 100% means everyone gives up the same share of their free time.
 
-Muse Spark then gets the household, the notes ("Ali has exams Thursday"), last week's record and the draft, and suggests moves plus a short note for each person. Its moves are only kept if they don't make the week less fair or push anyone past their free time. With no key set, the fair-share plan is used as is.
+Muse Spark then gets the household, the notes ("John has exams Thursday"), last week's record and the draft, and suggests moves plus a short note for each person. Its moves are only kept if they don't make the week less fair or push anyone past their free time. With no key set, the fair-share plan is used as is.
 
-Muse Spark also reads a plain-English description of the household on setup ("Mum works 8-5, Zara is 9...") and fills in people, free time, chores and photo checks. For chores MoLakaz doesn't know, it guesses the time and what to photograph.
+Muse Spark also reads a plain-English description of the household on setup ("Mum works 8-5, Sara is 9...") and fills in people, free time, chores and photo checks. For chores MoLakaz doesn't know, it guesses the time and what to photograph.
 
 Rebalancing: "Busy today?" moves your chores for the day to whoever's free. "Can't do it today" hands a single chore off. Missed daily chores get dropped, missed weekly ones roll over. Load evens back out over the rest of the week.
 
@@ -90,6 +90,10 @@ cd backend
 MOLAKAZ_LOCAL=1 uvicorn api:web --host 0.0.0.0 --port 8000      # powershell: $env:MOLAKAZ_LOCAL="1"; uvicorn ...
 python try_planner.py                                           # planner sanity check with a made-up family
 ```
+
+### Demo household
+
+`python seed_demo.py` (local) or `modal run modal_app.py::seed` (Modal) loads Mum, Dad, John and Sara half way through the week: chores done, one in progress, a photo result, one waiting for approval, Muse Spark's notes and last week saved. Run it again any time to reset. In the app, join with the code `DEMO26` and pick John (or Mum for approvals).
 
 ### App
 
