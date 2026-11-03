@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Platform, Pressable, Text, View } from 'react-native';
 
 import { Button, Header, IconButton, Screen, Txt, Waveform } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { font, useTheme } from '@/lib/theme';
 
 const MAX_SECONDS = 120;
@@ -36,6 +36,8 @@ export default function Voice() {
   const state = useAudioRecorderState(recorder, 80);
   const [phase, setPhase] = useState<Phase>('starting');
   const [error, setError] = useState('');
+  // the server answered but has no speech-to-text (local backend without whisper)
+  const [noVoice, setNoVoice] = useState(false);
   const [levels, setLevels] = useState<number[]>(() => Array(BARS).fill(0));
   const [metered, setMetered] = useState(false);
   const stopping = useRef(false);
@@ -112,6 +114,7 @@ export default function Voice() {
         params: { mode, text: res.text, secs: String(Math.max(1, Math.round(res.seconds || live))), audio: uri },
       });
     } catch (e) {
+      setNoVoice(e instanceof ApiError && e.status === 503);
       setError((e as Error).message);
       setPhase('error');
     }
@@ -164,7 +167,14 @@ export default function Voice() {
         ) : phase === 'denied' ? (
           <Text style={{ fontFamily: font.medium, fontSize: 22, lineHeight: 32, color: c.text }}>MoLakaz needs the microphone to hear you. Turn it on in your phone's settings, or type instead.</Text>
         ) : phase === 'error' ? (
-          <Text style={{ fontFamily: font.medium, fontSize: 22, lineHeight: 32, color: c.text }}>{error || 'Something went wrong.'}</Text>
+          <>
+            <Text style={{ fontFamily: font.medium, fontSize: 22, lineHeight: 32, color: c.text }}>{noVoice ? "Voice isn't switched on for this server yet." : error || 'Something went wrong.'}</Text>
+            {noVoice && (
+              <Txt v="caption" style={{ marginTop: 10 }}>
+                Voice runs on the Modal backend. On a laptop backend it needs Whisper installed (requirements-voice.txt and ffmpeg). You can type your message instead.
+              </Txt>
+            )}
+          </>
         ) : (
           <Text style={{ fontFamily: font.medium, fontSize: 28, lineHeight: 38, color: c.textFaint }}>
             {mode === 'dictation' ? 'Who lives there, when they’re free, and what needs doing…' : 'Go ahead, I’m listening…'}
@@ -191,7 +201,7 @@ export default function Voice() {
       <View style={{ flex: 1 }} />
       {phase === 'denied' || phase === 'error' ? (
         <View style={{ gap: 10, marginBottom: 8 }}>
-          {phase === 'error' && <Button label="Try again" icon={RotateCcw} onPress={start} />}
+          {phase === 'error' && !noVoice && <Button label="Try again" icon={RotateCcw} onPress={start} />}
           <Button label="Type instead" kind="outline" icon={Keyboard} onPress={typeInstead} />
         </View>
       ) : (

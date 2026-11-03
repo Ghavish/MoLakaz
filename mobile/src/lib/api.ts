@@ -10,19 +10,35 @@ export function photoUrl(path?: string | null) {
   return path.startsWith('http') ? path : API_URL + path;
 }
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function call<T>(path: string, init: RequestInit = {}, what = ''): Promise<T> {
   const headers: Record<string, string> = {};
   if (init.body && !(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
 
   let res: Response;
   try {
     res = await fetch(API_URL + path, { ...init, headers });
-  } catch {
-    throw new Error(`Can't reach MoLakaz at ${API_URL}. Is the backend running?`);
+  } catch (e) {
+    // fetch only throws when no answer came back at all. say why, so it's clear what to fix
+    const why = (e as Error)?.message ? ` (${(e as Error).message})` : '';
+    if (what) throw new ApiError(`Couldn't send the ${what} to MoLakaz at ${API_URL}${why}. Try again.`, 0);
+    throw new ApiError(`Can't reach MoLakaz at ${API_URL}${why}. Is the backend running?`, 0);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || `Something went wrong (${res.status})`);
+  if (!res.ok) throw new ApiError(data.detail || `Something went wrong (${res.status})`, res.status);
   return data as T;
+}
+
+// react native only uploads a file when its uri has a scheme. some recorders hand back a bare path
+export function fileUri(uri: string) {
+  return /^[a-z][a-z0-9+.-]*:/i.test(uri) ? uri : 'file://' + (uri.startsWith('/') ? '' : '/') + uri;
 }
 
 const post = <T>(path: string, body: unknown) => call<T>(path, { method: 'POST', body: JSON.stringify(body) });
@@ -33,7 +49,7 @@ async function attach(form: FormData, field: string, uri: string, name: string, 
     form.append(field, blob, name);
   } else {
     // react native's FormData takes a file like this
-    form.append(field, { uri, name, type } as unknown as Blob);
+    form.append(field, { uri: fileUri(uri), name, type } as unknown as Blob);
   }
 }
 
@@ -41,7 +57,7 @@ async function upload<T>(path: string, uri: string, memberId: string) {
   const form = new FormData();
   form.append('member_id', memberId);
   await attach(form, 'photo', uri, 'photo.jpg', 'image/jpeg');
-  return call<T>(path, { method: 'POST', body: form });
+  return call<T>(path, { method: 'POST', body: form }, 'photo');
 }
 
 // phones record m4a, browsers record webm
@@ -55,7 +71,7 @@ async function transcribe(uri: string) {
   const form = new FormData();
   const [name, type] = audioFile(uri);
   await attach(form, 'audio', uri, name, type);
-  return call<{ text: string; seconds: number }>('/transcribe', { method: 'POST', body: form });
+  return call<{ text: string; seconds: number }>('/transcribe', { method: 'POST', body: form }, 'recording');
 }
 
 export type Draft = { members: Member[]; chores: Chore[]; notes: string };

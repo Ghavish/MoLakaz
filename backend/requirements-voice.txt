@@ -1,0 +1,5 @@
+# only for voice messages on a laptop backend (MOLAKAZ_LOCAL=1). modal installs these in its own image.
+# also needs ffmpeg on your PATH (windows: winget install Gyan.FFmpeg, then open a new terminal)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+transformers>=5
