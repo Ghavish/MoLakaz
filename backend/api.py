@@ -436,8 +436,8 @@ def transcribe_audio(audio: UploadFile = File(...)):
                     _local_asr = transcribe.load(os.environ.get("WHISPER_MODEL", "openai/whisper-base"), "cpu")
                 res = transcribe.run(_local_asr, data)
             except ImportError:
-                raise HTTPException(503, "Voice needs the Modal backend, or `pip install torch transformers` "
-                                         "and ffmpeg to run it locally. You can type instead.")
+                raise HTTPException(503, "Voice needs the Modal backend, or requirements-voice.txt and ffmpeg "
+                                         "to run it on this laptop. You can type instead.")
     except HTTPException:
         raise
     except ValueError as e:
