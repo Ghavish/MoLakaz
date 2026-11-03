@@ -2,6 +2,7 @@ import { Redirect, router } from 'expo-router';
 import { Clock, Mic, Moon, Sparkles, Sun } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChoreCard, HeroChore } from '@/components/ChoreRow';
 import { Button, Card, IconButton, PersonTile, ProgressRing, Screen, Section, TextLink, TintCard, Txt } from '@/components/ui';
@@ -13,6 +14,7 @@ import { useRefresher } from '@/lib/useRefresher';
 
 export default function Today() {
   const { c, dark, toggle } = useTheme();
+  const insets = useSafeAreaInsets();
   const { hh, me, member } = useHousehold();
   const setHousehold = useSession((s) => s.setHousehold);
   const leave = useSession((s) => s.leave);
@@ -141,7 +143,7 @@ export default function Today() {
       </Screen>
 
       {undo ? (
-        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 110, alignItems: 'center' }} pointerEvents="box-none">
+        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 88 + insets.bottom, alignItems: 'center' }} pointerEvents="box-none">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.highlight, borderRadius: 18, paddingLeft: 16, paddingRight: 6, paddingVertical: 6, maxWidth: 528, width: '100%' }}>
             <Text style={{ flex: 1, fontFamily: font.regular, fontSize: 13, color: c.onHighlight }}>{undo}</Text>
             <Pressable onPress={() => toggleAway(false)} style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' }} accessibilityRole="button">

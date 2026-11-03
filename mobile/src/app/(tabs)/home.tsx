@@ -171,13 +171,13 @@ export default function Home() {
           ) : (
             <Card style={{ marginBottom: 12 }}>
               <Txt v="body" muted>
-                No notes yet. Notes like "Ali has exams on Thursday" go to Muse Spark with the weekly plan.
+                No notes yet. Notes like "John has exams on Thursday" go to Muse Spark with the weekly plan.
               </Txt>
             </Card>
           )}
           {isAdmin && (
             <>
-              <Input value={note} onChangeText={setNote} placeholder="Zara has football on Wednesdays" onSubmitEditing={() => note.trim() && saveNotes([...notes, note.trim()])} />
+              <Input value={note} onChangeText={setNote} placeholder="Sara has football on Wednesdays" onSubmitEditing={() => note.trim() && saveNotes([...notes, note.trim()])} />
               <Button label="Add a note" kind="outline" icon={Plus} onPress={() => saveNotes([...notes, note.trim()])} disabled={!note.trim()} loading={busy === 'notes'} />
             </>
           )}

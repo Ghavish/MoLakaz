@@ -107,7 +107,7 @@ export default function Describe() {
           <Input label="Your home's name" placeholder="Lakaz Ramdin" value={home} onChangeText={setHome} autoCapitalize="words" />
         </View>
         <View style={{ flex: 1 }}>
-          <Input label="Your name" placeholder="Ali" value={name} onChangeText={setName} autoCapitalize="words" />
+          <Input label="Your name" placeholder="John" value={name} onChangeText={setName} autoCapitalize="words" />
         </View>
       </View>
 
@@ -120,7 +120,7 @@ export default function Describe() {
           value={story}
           onChangeText={setStory}
           editable={!aiOff}
-          placeholder="Mum works 8–5 on weekdays. Dad works from home and is free after 6. Ali is at uni and has exams on Thursday. Zara is 9 and can do small jobs. We need the dishes done every night, laundry twice a week and the floors swept."
+          placeholder="Mum works 8–5 on weekdays. Dad works from home and is free after 6. John is at uni and has exams on Thursday. Sara is 9 and can do small jobs. We need the dishes done every night, laundry twice a week and the floors swept."
           placeholderTextColor={c.textFaint}
           style={{ minHeight: 150, fontFamily: font.regular, fontSize: 15, lineHeight: 24, color: c.text, textAlignVertical: 'top', padding: 0 }}
         />

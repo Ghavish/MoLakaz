@@ -5,9 +5,10 @@ import { ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Button, Chip, HScroll, IconButton, Screen, Txt } from '@/components/ui';
 import { type ChatMessage, useFlow } from '@/lib/flow';
-import { assistantSend, assistantUndo, type ActionSummary } from '@/lib/mocks';
-import { useHousehold } from '@/lib/session';
+import { api } from '@/lib/api';
+import { useHousehold, useSession } from '@/lib/session';
 import { font, radius, tell, useTheme } from '@/lib/theme';
+import type { AssistantChanges } from '@/lib/types';
 
 const SUGGESTIONS = [
   { label: "I'm busy today", tone: 'coral' },
@@ -22,6 +23,7 @@ export default function Assistant() {
   const { c, dark } = useTheme();
   const { hh, me, member } = useHousehold();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const setHousehold = useSession((s) => s.setHousehold);
   const chat = useFlow((s) => s.chat);
   const setChat = useFlow((s) => s.setChat);
   const outbox = useFlow((s) => s.outbox);
@@ -40,13 +42,16 @@ export default function Assistant() {
       const msg = raw.trim();
       if (!msg || !hh || !me) return;
       setText('');
+      // the last few messages give it context for follow-ups like "no, Thursday instead"
+      const history = useFlow.getState().chat.slice(-10).map((m) => ({ from: m.from, text: m.text }));
       setChat((cs) => [...cs, { id: id(), from: 'me', text: msg }]);
       setTyping(true);
       try {
-        const reply = await assistantSend(hh, me, msg);
-        setChat((cs) => [...cs, { id: id(), from: 'assistant', text: reply.text, action: reply.action }]);
+        const res = await api.assistant(hh.id, me, msg, history);
+        setHousehold(res.household);
+        setChat((cs) => [...cs, { id: id(), from: 'assistant', text: res.reply, action: res.changes ?? undefined }]);
       } catch (e) {
-        tell("Couldn't reach the assistant", (e as Error).message);
+        setChat((cs) => [...cs, { id: id(), from: 'assistant', text: `Sorry, that didn't go through. ${(e as Error).message}` }]);
       } finally {
         setTyping(false);
       }
@@ -65,8 +70,13 @@ export default function Assistant() {
   );
 
   async function undo(m: ChatMessage) {
-    await assistantUndo();
-    setChat((cs) => cs.map((x) => (x.id === m.id ? { ...x, undone: true } : x)));
+    if (!hh || !me || !m.action) return;
+    try {
+      setHousehold(await api.assistantUndo(hh.id, me, m.action.id));
+      setChat((cs) => cs.map((x) => (x.id === m.id ? { ...x, undone: true } : x)));
+    } catch (e) {
+      tell("Couldn't undo that", (e as Error).message);
+    }
   }
 
   if (!hh || !member) return null;
@@ -153,19 +163,20 @@ function Bubble({ from, text, bg, fg }: { from: 'me' | 'assistant'; text: string
   );
 }
 
-function Summary({ action, undone, onUndo }: { action: ActionSummary; undone?: boolean; onUndo: () => void }) {
+function Summary({ action, undone, onUndo }: { action: AssistantChanges; undone?: boolean; onUndo: () => void }) {
   const { c, shadow } = useTheme();
-  const row = (label: string, value: string, color: string) => (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 3 }}>
+  const row = (label: string, value: string, color: string, key: string) => (
+    <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 3 }}>
       <Txt v="caption">{label}</Txt>
       <Text style={{ fontFamily: font.semibold, fontSize: 12, color, flexShrink: 1, textAlign: 'right' }}>{value}</Text>
     </View>
   );
   return (
     <View style={[{ backgroundColor: c.surfaceSubtle, borderRadius: radius.cardSmall, padding: 14, maxWidth: '88%', opacity: undone ? 0.6 : 1 }, shadow]}>
-      {action.moved ? row('Moved', action.moved, c.coral.ink) : null}
-      {action.added ? row('Added', action.added, c.success.ink) : null}
-      {action.fairness ? row('Fairness', `${action.fairness.from}% → ${action.fairness.to}%`, c.blue.ink) : null}
+      {action.moved.map((t, i) => row(i ? '' : 'Moved', t, c.coral.ink, 'm' + i))}
+      {action.added.map((t, i) => row(i ? '' : 'Added', t, c.success.ink, 'a' + i))}
+      {action.notes.map((t, i) => row(i ? '' : 'Note', t, c.ai.ink, 'n' + i))}
+      {action.fairness ? row('Fairness', `${action.fairness.from}% → ${action.fairness.to}%`, c.blue.ink, 'f') : null}
       {undone ? (
         <Txt v="caption" center style={{ marginTop: 8 }}>
           Undone

@@ -1,3 +1,4 @@
+import copy
 import random
 import string
 from datetime import datetime, timedelta
@@ -37,6 +38,13 @@ def week_start(tz=TZ):
 
 def today_index(tz=TZ):
     return now(tz).weekday()
+
+
+def next_week_start(tz=TZ):
+    return (datetime.fromisoformat(week_start(tz)) + timedelta(days=7)).date().isoformat()
+
+
+KEEP_WEEKS = 8
 
 
 def weight(chore):
@@ -234,6 +242,7 @@ def board(hh):
 def plan(hh, ai=False):
     tz = hh.get("tz", TZ)
     if hh.get("week") != week_start(tz):
+        archive(hh)
         hh["week"] = week_start(tz)
         hh["tasks"] = []
         for m in hh["members"]:
@@ -314,12 +323,59 @@ def rebalance(hh):
     return hh
 
 
-def new_week(hh, ai=False):
-    # remember who did what, so next week rotates and muse can see who slacked
-    history, stats = {}, {}
-    for t in hh.get("tasks", []):
+def week_snapshot(hh, kind="past"):
+    # everything the week screen needs, with names copied in so it still reads right if people or chores change later
+    tasks = hh.get("tasks", [])
+    return {
+        "kind": kind,
+        "week": hh.get("week"),
+        "tasks": [{k: t.get(k) for k in ("id", "chore", "member", "day", "status")} for t in tasks],
+        "board": board(hh),
+        "fairness": fairness(hh, tasks),
+        "summary": hh.get("summary", ""),
+        "members": [{"id": m["id"], "name": m["name"]} for m in hh["members"]],
+        "chores": [{k: c.get(k) for k in ("id", "name", "icon", "minutes")} for c in hh["chores"]],
+    }
+
+
+def archive(hh):
+    # keep the finished week so people can look back at it from the week screen
+    if not hh.get("tasks") or not hh.get("week") or not hh.get("id"):
+        return
+    import store
+
+    store.put(f"week:{hh['id']}:{hh['week']}", week_snapshot(hh))
+    weeks = [w for w in hh.get("past_weeks", []) if w != hh["week"]]
+    hh["past_weeks"] = sorted([hh["week"]] + weeks, reverse=True)[:KEEP_WEEKS]
+
+
+def count_history(tasks):
+    history = {}
+    for t in tasks:
         history.setdefault(t["member"], {})
         history[t["member"]][t["chore"]] = history[t["member"]].get(t["chore"], 0) + 1
+    return history
+
+
+def preview_next(hh):
+    # what next week would look like from today's household. fair-share only, nothing is saved:
+    # the real plan is made on monday morning, when muse spark also gets a say
+    nxt = copy.deepcopy(hh)
+    nxt["history"] = count_history(hh.get("tasks", []))
+    nxt["week"] = next_week_start(hh.get("tz", TZ))
+    for m in nxt["members"]:
+        m["away"] = []
+    nxt["tasks"] = allocate(nxt, make_slots(nxt["chores"]), [], 0)
+    nxt["tasks"].sort(key=lambda t: (t["day"], t["member"]))
+    nxt["summary"] = ""
+    return week_snapshot(nxt, "next")
+
+
+def new_week(hh, ai=False):
+    archive(hh)
+    # remember who did what, so next week rotates and muse can see who slacked
+    history, stats = count_history(hh.get("tasks", [])), {}
+    for t in hh.get("tasks", []):
         s = stats.setdefault(t["member"], {"given": 0, "done": 0})
         s["given"] += 1
         if t["status"] == "done":

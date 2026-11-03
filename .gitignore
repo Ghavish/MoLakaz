@@ -8,8 +8,9 @@ backend/local_data.json
 backend/local_photos/
 backend/*_marked.jpg
 
-# each dev points the app at their own backend
+# each dev points the app at their own backend, and keeps their own keys
 mobile/.env
+backend/.env
 
 # editor stuff
 .vscode/

@@ -1,6 +1,7 @@
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Mic, Pencil, Play, Send, Sparkles } from 'lucide-react-native';
-import { useState } from 'react';
+import { Mic, Pause, Pencil, Play, Send, Sparkles } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
 import { Button, Header, IconButton, Screen, TintCard, Txt, Waveform } from '@/components/ui';
@@ -9,13 +10,29 @@ import { font, radius, useTheme } from '@/lib/theme';
 
 export default function Confirm() {
   const { c, shadow } = useTheme();
-  const params = useLocalSearchParams<{ mode?: string; text?: string; secs?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; text?: string; secs?: string; audio?: string }>();
   const dictation = params.mode === 'dictation';
   const [text, setText] = useState(params.text ?? '');
-  const [played, setPlayed] = useState(0.3);
   const setOutbox = useFlow((s) => s.setOutbox);
   const setDictation = useFlow((s) => s.setDictation);
   const secs = Number(params.secs || 0);
+  const player = useAudioPlayer(params.audio ? { uri: params.audio } : null);
+  const status = useAudioPlayerStatus(player);
+  const length = status.duration || secs;
+  const played = length ? Math.min(1, status.currentTime / length) : 0;
+
+  // back to normal playback (loudspeaker, not the earpiece) now recording is over
+  useEffect(() => {
+    setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+  }, []);
+
+  function playPause() {
+    if (status.playing) return player.pause();
+    if (status.didJustFinish || (length && status.currentTime >= length - 0.05)) player.seekTo(0);
+    player.play();
+  }
+
+  const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
   function send() {
     if (!text.trim()) return;
@@ -61,14 +78,15 @@ export default function Confirm() {
         </View>
       </View>
 
-      {/* TODO: play back the recorded audio once recording is real */}
-      <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: radius.cardSmall, padding: 10, marginBottom: 12 }, shadow]}>
-        <IconButton icon={Play} label="Play it back" onPress={() => setPlayed((p) => (p >= 1 ? 0 : Math.min(1, p + 0.35)))} size={40} iconSize={16} bg={c.ai.strong} color="#FFFFFF" />
-        <View style={{ flex: 1, overflow: 'hidden' }}>
-          <Waveform bars={30} height={24} animated={false} played={played} barWidth={3} gap={3} />
+      {params.audio ? (
+        <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: radius.cardSmall, padding: 10, marginBottom: 12 }, shadow]}>
+          <IconButton icon={status.playing ? Pause : Play} label={status.playing ? 'Pause' : 'Play it back'} onPress={playPause} size={40} iconSize={16} bg={c.ai.strong} color="#FFFFFF" />
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            <Waveform bars={30} height={24} animated={false} played={played} barWidth={3} gap={3} />
+          </View>
+          <Txt v="caption">{status.playing || status.currentTime > 0 ? `${clock(status.currentTime)} / ${clock(length)}` : clock(length)}</Txt>
         </View>
-        <Txt v="caption">{`0:${String(secs).padStart(2, '0')}`}</Txt>
-      </View>
+      ) : null}
 
       <TintCard tone="success" style={{ flexDirection: 'row', gap: 10 }}>
         <Sparkles size={14} color={c.success.ink} strokeWidth={2} style={{ marginTop: 3 }} />

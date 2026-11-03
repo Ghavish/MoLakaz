@@ -172,7 +172,7 @@ export default function Review() {
       )}
 
       <Section>Anything the planner should know?</Section>
-      <Input multiline value={notes} onChangeText={setNotes} placeholder="Ali has exams on Thursday. Zara has football on Wednesdays." />
+      <Input multiline value={notes} onChangeText={setNotes} placeholder="John has exams on Thursday. Sara has football on Wednesdays." />
 
       {/* person editor */}
       <Sheet visible={!!editing} onClose={() => setPerson(null)} title={editing?.name || 'New person'} footer={<Button label="Done" onPress={() => setPerson(null)} />}>

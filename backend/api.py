@@ -1,4 +1,5 @@
 import io
+import os
 import random
 import time
 from pathlib import Path
@@ -9,16 +10,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-import chores as chore_lib
-import muse
-import planner
-import store
+import envfile
+
+envfile.load()  # backend/.env, before anything reads the keys
+
+import assistant  # noqa: E402
+import chores as chore_lib  # noqa: E402
+import muse  # noqa: E402
+import planner  # noqa: E402
+import store  # noqa: E402
 
 web = FastAPI(title="MoLakaz")
 web.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # modal_app.py plugs the gpu calls in here. running locally they stay None
-hooks = {"verify": None, "warm": None, "saved": None}
+hooks = {"verify": None, "warm": None, "saved": None, "reload": None, "transcribe": None, "warm_ears": None}
+
+# whisper on the cpu when running locally without modal, loaded the first time someone talks
+_local_asr = None
 
 
 class NewHousehold(BaseModel):
@@ -45,6 +54,17 @@ class Away(BaseModel):
 
 class Text(BaseModel):
     text: str
+
+
+class Chat(BaseModel):
+    member_id: str
+    text: str
+    history: list[dict] = []
+
+
+class UndoChange(BaseModel):
+    member_id: str
+    change_id: str
 
 
 class PushToken(BaseModel):
@@ -85,6 +105,7 @@ def task(hh, tid):
 
 def view(hh):
     out = dict(hh)
+    out.pop("undo", None)  # undo snapshots stay on the server
     out["members"] = [{k: v for k, v in m.items() if k != "push"} for m in hh["members"]]
     out["today"] = planner.today_index(hh["tz"])
     out["board"] = planner.board(hh)
@@ -330,6 +351,56 @@ def push_token(hid: str, body: PushToken):
     return {"ok": True}
 
 
+@web.get("/households/{hid}/weeks/{week}")
+def get_week(hid: str, week: str):
+    hh = load(hid)
+    if week == hh.get("week"):
+        return planner.week_snapshot(hh, "current")
+    if week == planner.next_week_start(hh["tz"]):
+        return planner.preview_next(hh) if hh.get("chores") else {**planner.week_snapshot({**hh, "tasks": []}, "next"), "week": week}
+    saved = store.get(f"week:{hid}:{week}")
+    if not saved:
+        raise HTTPException(404, "That week isn't saved")
+    return saved
+
+
+@web.post("/households/{hid}/assistant")
+def assistant_chat(hid: str, body: Chat):
+    hh = load(hid)
+    member(hh, body.member_id)
+    text = body.text.strip()[:1000]
+    if not text:
+        raise HTTPException(400, "Say something first")
+    if not muse.ready():
+        return {"reply": "I need Muse Spark to answer, and it isn't switched on for this server yet (MODEL_API_KEY). "
+                         "You can still hand chores off from Today.", "changes": None, "household": view(hh)}
+    try:
+        out = assistant.ask(hh, body.member_id, text, body.history)
+    except Exception as e:
+        print("assistant failed:", e)
+        raise HTTPException(502, "The assistant couldn't answer right now. Try again in a moment.")
+
+    # muse can take a few seconds, so apply its actions to a fresh copy and don't stomp on other changes
+    hh = load(hid)
+    member(hh, body.member_id)
+    changes, refused = assistant.apply(hh, body.member_id, out["actions"])
+    if changes:
+        save(hh)
+    reply = assistant.explain_refusal(out["reply"], refused, bool(changes))
+    return {"reply": reply, "changes": changes, "household": view(hh)}
+
+
+@web.post("/households/{hid}/assistant/undo")
+def assistant_undo(hid: str, body: UndoChange):
+    hh = load(hid)
+    member(hh, body.member_id)
+    problem = assistant.undo(hh, body.member_id, body.change_id)
+    if problem:
+        raise HTTPException(409, problem)
+    save(hh)
+    return view(hh)
+
+
 @web.post("/ai/setup")
 def ai_setup(body: Text):
     if not muse.ready():
@@ -346,9 +417,60 @@ def ai_chore(body: Text):
     return chore_lib.suggest(body.text)
 
 
+@web.post("/transcribe")
+def transcribe_audio(audio: UploadFile = File(...)):
+    global _local_asr
+    data = audio.file.read()
+    if not data:
+        raise HTTPException(400, "The recording was empty")
+    if len(data) > 15 * 1024 * 1024:
+        raise HTTPException(413, "That recording is too long")
+
+    try:
+        if hooks["transcribe"]:
+            res = hooks["transcribe"](data)
+        else:
+            try:
+                import transcribe
+                if _local_asr is None:
+                    _local_asr = transcribe.load(os.environ.get("WHISPER_MODEL", "openai/whisper-base"), "cpu")
+                res = transcribe.run(_local_asr, data)
+            except ImportError:
+                raise HTTPException(503, "Voice needs the Modal backend, or requirements-voice.txt and ffmpeg "
+                                         "to run it on this laptop. You can type instead.")
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        print("transcribe failed:", e)
+        raise HTTPException(502, "Couldn't write that out right now. Try again, or type it.")
+
+    if not res.get("text"):
+        raise HTTPException(422, "Didn't catch anything. Try again a bit closer to the phone.")
+    return res
+
+
+# the voice screen calls this when it opens, so whisper is awake by the time they stop talking
+@web.post("/transcribe/warm")
+def transcribe_warm():
+    if hooks["warm_ears"]:
+        try:
+            hooks["warm_ears"]()
+        except Exception as e:
+            print("whisper warmup failed:", e)
+    return {"ok": True}
+
+
 @web.get("/photos/{name}")
 def photo(name: str):
     path = store.PHOTOS / Path(name).name
+    if not path.exists() and hooks["reload"]:
+        # written by another container (like the demo seed), so pick up the latest volume
+        try:
+            hooks["reload"]()
+        except Exception as e:
+            print("photo reload failed:", e)
     if not path.exists():
         raise HTTPException(404, "No such photo")
     return FileResponse(path, media_type="image/jpeg")

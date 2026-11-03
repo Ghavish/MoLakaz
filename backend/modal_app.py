@@ -2,6 +2,12 @@ import os
 
 import modal
 
+# on your laptop, `modal deploy` takes the keys from backend/.env (then from your terminal) and stores them on modal
+if modal.is_local():
+    import envfile
+
+    envfile.load()
+
 app = modal.App("molakaz")
 
 # sam 3.1 weights converted to the transformers Sam3Model format (not gated).
@@ -10,14 +16,14 @@ SAM_MODEL = os.environ.get("SAM_MODEL", "unsloth/sam3.1")
 
 
 def env_secret(*names):
-    # takes keys from your shell when you deploy, skips any you haven't set
+    # takes keys from backend/.env or your terminal when you deploy, skips any you haven't set
     return modal.Secret.from_dict({n: os.environ[n] for n in names if os.environ.get(n)})
 
 
 web_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("fastapi[standard]", "openai", "httpx", "pillow", "tzdata")
-    .add_local_python_source("api", "chores", "jobs", "muse", "planner", "store")
+    .add_local_python_source("api", "assistant", "chores", "envfile", "jobs", "muse", "planner", "seed_demo", "store")
 )
 
 sam_image = (
@@ -25,6 +31,17 @@ sam_image = (
     .pip_install("torch", "torchvision", "transformers>=5", "accelerate", "pillow", "numpy")
     .env({"HF_HOME": "/cache", "SAM_MODEL": SAM_MODEL})
     .add_local_python_source("verify")
+)
+
+# speech to text for the voice screens
+WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "openai/whisper-large-v3-turbo")
+
+whisper_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .apt_install("ffmpeg")
+    .pip_install("torch", "transformers>=5", "accelerate", "numpy")
+    .env({"HF_HOME": "/cache", "WHISPER_MODEL": WHISPER_MODEL})
+    .add_local_python_source("transcribe")
 )
 
 weights = modal.Volume.from_name("molakaz-weights", create_if_missing=True)
@@ -54,6 +71,26 @@ class Verifier:
         return verify.run(self.model, self.processor, before, after, check)
 
 
+@app.cls(gpu="T4", image=whisper_image, volumes={"/cache": weights}, scaledown_window=300, timeout=300)
+class Transcriber:
+    @modal.enter()
+    def load(self):
+        import transcribe
+
+        self.asr = transcribe.load(WHISPER_MODEL, "cuda")
+        weights.commit()
+
+    @modal.method()
+    def warm(self):
+        return True
+
+    @modal.method()
+    def transcribe(self, audio):
+        import transcribe
+
+        return transcribe.run(self.asr, audio)
+
+
 # one web container so the dict and the photo volume never disagree with themselves
 @app.function(image=web_image, volumes={"/photos": photos}, secrets=[muse_keys], max_containers=1, timeout=300)
 @modal.concurrent(max_inputs=20)
@@ -64,7 +101,19 @@ def web():
     api.hooks["verify"] = lambda before, after, check: Verifier().check.remote(before, after, check)
     api.hooks["warm"] = lambda: Verifier().warm.spawn()
     api.hooks["saved"] = photos.commit
+    api.hooks["reload"] = photos.reload
+    api.hooks["transcribe"] = lambda audio: Transcriber().transcribe.remote(audio)
+    api.hooks["warm_ears"] = lambda: Transcriber().warm.spawn()
     return api.web
+
+
+# load (or reset) the demo household: modal run modal_app.py::seed
+@app.function(image=web_image, volumes={"/photos": photos}, timeout=120)
+def seed():
+    import seed_demo
+
+    seed_demo.run()
+    photos.commit()
 
 
 # 6:30 every morning: plan the new week on mondays, otherwise carry over missed chores, then remind everyone
