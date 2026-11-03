@@ -27,17 +27,35 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const post = <T>(path: string, body: unknown) => call<T>(path, { method: 'POST', body: JSON.stringify(body) });
 
+async function attach(form: FormData, field: string, uri: string, name: string, type: string) {
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    form.append(field, blob, name);
+  } else {
+    // react native's FormData takes a file like this
+    form.append(field, { uri, name, type } as unknown as Blob);
+  }
+}
+
 async function upload<T>(path: string, uri: string, memberId: string) {
   const form = new FormData();
   form.append('member_id', memberId);
-  if (Platform.OS === 'web') {
-    const blob = await (await fetch(uri)).blob();
-    form.append('photo', blob, 'photo.jpg');
-  } else {
-    // react native's FormData takes a file like this
-    form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' } as unknown as Blob);
-  }
+  await attach(form, 'photo', uri, 'photo.jpg', 'image/jpeg');
   return call<T>(path, { method: 'POST', body: form });
+}
+
+// phones record m4a, browsers record webm
+function audioFile(uri: string): [string, string] {
+  const ext = (uri.split('?')[0].match(/\.(\w+)$/)?.[1] ?? (Platform.OS === 'web' ? 'webm' : 'm4a')).toLowerCase();
+  const types: Record<string, string> = { m4a: 'audio/m4a', mp4: 'audio/mp4', aac: 'audio/aac', caf: 'audio/x-caf', wav: 'audio/wav', webm: 'audio/webm', '3gp': 'audio/3gpp' };
+  return [`voice.${ext}`, types[ext] ?? 'application/octet-stream'];
+}
+
+async function transcribe(uri: string) {
+  const form = new FormData();
+  const [name, type] = audioFile(uri);
+  await attach(form, 'audio', uri, name, type);
+  return call<{ text: string; seconds: number }>('/transcribe', { method: 'POST', body: form });
 }
 
 export type Draft = { members: Member[]; chores: Chore[]; notes: string };
@@ -67,4 +85,6 @@ export const api = {
     post<{ ok: boolean }>(`/households/${hid}/push`, { member_id: me, token }),
   readHousehold: (text: string) => post<Draft>('/ai/setup', { text }),
   suggestChore: (name: string) => post<Chore>('/ai/chore', { text: name }),
+  transcribe,
+  warmTranscriber: () => post<{ ok: boolean }>('/transcribe/warm', {}),
 };

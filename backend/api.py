@@ -1,4 +1,5 @@
 import io
+import os
 import random
 import time
 from pathlib import Path
@@ -18,7 +19,10 @@ web = FastAPI(title="MoLakaz")
 web.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # modal_app.py plugs the gpu calls in here. running locally they stay None
-hooks = {"verify": None, "warm": None, "saved": None}
+hooks = {"verify": None, "warm": None, "saved": None, "transcribe": None, "warm_ears": None}
+
+# whisper on the cpu when running locally without modal, loaded the first time someone talks
+_local_asr = None
 
 
 class NewHousehold(BaseModel):
@@ -344,6 +348,51 @@ def ai_setup(body: Text):
 @web.post("/ai/chore")
 def ai_chore(body: Text):
     return chore_lib.suggest(body.text)
+
+
+@web.post("/transcribe")
+def transcribe_audio(audio: UploadFile = File(...)):
+    global _local_asr
+    data = audio.file.read()
+    if not data:
+        raise HTTPException(400, "The recording was empty")
+    if len(data) > 15 * 1024 * 1024:
+        raise HTTPException(413, "That recording is too long")
+
+    try:
+        if hooks["transcribe"]:
+            res = hooks["transcribe"](data)
+        else:
+            try:
+                import transcribe
+                if _local_asr is None:
+                    _local_asr = transcribe.load(os.environ.get("WHISPER_MODEL", "openai/whisper-base"), "cpu")
+                res = transcribe.run(_local_asr, data)
+            except ImportError:
+                raise HTTPException(503, "Voice needs the Modal backend, or `pip install torch transformers` "
+                                         "and ffmpeg to run it locally. You can type instead.")
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        print("transcribe failed:", e)
+        raise HTTPException(502, "Couldn't write that out right now. Try again, or type it.")
+
+    if not res.get("text"):
+        raise HTTPException(422, "Didn't catch anything. Try again a bit closer to the phone.")
+    return res
+
+
+# the voice screen calls this when it opens, so whisper is awake by the time they stop talking
+@web.post("/transcribe/warm")
+def transcribe_warm():
+    if hooks["warm_ears"]:
+        try:
+            hooks["warm_ears"]()
+        except Exception as e:
+            print("whisper warmup failed:", e)
+    return {"ok": True}
 
 
 @web.get("/photos/{name}")

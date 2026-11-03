@@ -27,6 +27,17 @@ sam_image = (
     .add_local_python_source("verify")
 )
 
+# speech to text for the voice screens
+WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "openai/whisper-large-v3-turbo")
+
+whisper_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .apt_install("ffmpeg")
+    .pip_install("torch", "transformers>=5", "accelerate", "numpy")
+    .env({"HF_HOME": "/cache", "WHISPER_MODEL": WHISPER_MODEL})
+    .add_local_python_source("transcribe")
+)
+
 weights = modal.Volume.from_name("molakaz-weights", create_if_missing=True)
 photos = modal.Volume.from_name("molakaz-photos", create_if_missing=True)
 muse_keys = env_secret("MODEL_API_KEY", "MUSE_MODEL", "MUSE_BASE_URL")
@@ -54,6 +65,26 @@ class Verifier:
         return verify.run(self.model, self.processor, before, after, check)
 
 
+@app.cls(gpu="T4", image=whisper_image, volumes={"/cache": weights}, scaledown_window=300, timeout=300)
+class Transcriber:
+    @modal.enter()
+    def load(self):
+        import transcribe
+
+        self.asr = transcribe.load(WHISPER_MODEL, "cuda")
+        weights.commit()
+
+    @modal.method()
+    def warm(self):
+        return True
+
+    @modal.method()
+    def transcribe(self, audio):
+        import transcribe
+
+        return transcribe.run(self.asr, audio)
+
+
 # one web container so the dict and the photo volume never disagree with themselves
 @app.function(image=web_image, volumes={"/photos": photos}, secrets=[muse_keys], max_containers=1, timeout=300)
 @modal.concurrent(max_inputs=20)
@@ -64,6 +95,8 @@ def web():
     api.hooks["verify"] = lambda before, after, check: Verifier().check.remote(before, after, check)
     api.hooks["warm"] = lambda: Verifier().warm.spawn()
     api.hooks["saved"] = photos.commit
+    api.hooks["transcribe"] = lambda audio: Transcriber().transcribe.remote(audio)
+    api.hooks["warm_ears"] = lambda: Transcriber().warm.spawn()
     return api.web
 
 

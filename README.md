@@ -16,6 +16,7 @@ backend/  Python, deployed on Modal
 | What | Where |
 |---|---|
 | SAM 3.1 on an L4 GPU segments the before/after photos and compares them | `Verifier` class in `backend/modal_app.py`, logic in `backend/verify.py` |
+| Whisper (large-v3-turbo) on a T4 writes out what you say on the voice screens | `Transcriber` class in `modal_app.py`, logic in `backend/transcribe.py`, route `POST /transcribe` |
 | FastAPI web endpoint, the backend between the app and Muse Spark | `web` in `modal_app.py`, routes in `backend/api.py` |
 | 6:30am cron: plans the new week on Mondays, carries over missed chores, sends reminders | `morning` → `backend/jobs.py` |
 | 7pm cron: nudges anyone with chores still not done | `evening` |
@@ -80,7 +81,7 @@ The first run downloads the weights into a volume, so it's slow once.
 
 ### Backend locally, no Modal
 
-Everything except the SAM check works. Photo checks get waved through.
+Everything except the SAM check works. Photo checks get waved through. Voice needs Modal too, unless you `pip install torch transformers` and have ffmpeg, in which case it runs a small Whisper (`openai/whisper-base`, change with `WHISPER_MODEL`) on your CPU.
 
 ```bash
 cd backend

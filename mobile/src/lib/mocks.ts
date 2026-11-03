@@ -57,13 +57,6 @@ export async function assistantUndo(): Promise<void> {
   await wait(400);
 }
 
-// TODO: speech-to-text. Needs a dev build with an on-device recogniser, or upload the audio for the backend to transcribe.
-export const MOCK_TRANSCRIPTS = {
-  assistant: "Move my dishes to Thursday, I've got a study group tonight",
-  dictation:
-    'Mum works 8 to 5 on weekdays. Dad works from home and is free after 6. Ali is at uni and has exams on Thursday. Zara is 9 and can do small jobs. We need the dishes done every night, laundry twice a week and the floors swept.',
-};
-
 // TODO: POST /households/{id}/tasks/{tid}/retake { member_id } -> notify the member to retake the photo
 export async function askForRetake(): Promise<void> {
   await wait(400);

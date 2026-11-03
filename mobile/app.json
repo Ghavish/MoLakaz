@@ -40,6 +40,12 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "MoLakaz uses the microphone so you can tell the assistant what you need, or describe your home, out loud."
+        }
+      ],
       "expo-notifications",
       "expo-font"
     ],
