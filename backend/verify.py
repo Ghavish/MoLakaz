@@ -68,6 +68,8 @@ def judge(b, a, look, spot, mode, b_area, a_area):
         "before": {"count": b_count, "area": round(b_area, 4)},
         "after": {"count": a_count, "area": round(a_area, 4)},
         "found": {p: [b[p]["count"], a[p]["count"]] for p in look},
+        # sam's best confidence for each thing, before and after (it needs 0.45 to count one). handy when a check looks wrong
+        "scores": {p: [b[p]["best"], a[p]["best"]] for p in look + ([spot] if spot and spot not in look else [])},
     }
 
     def say(verdict, reason):
