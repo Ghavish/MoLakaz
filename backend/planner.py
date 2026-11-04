@@ -70,6 +70,27 @@ def can_do(m, chore, task=None):
     return True
 
 
+MAX_MEMBERS = 10
+COLORS = 10  # one colour each, see personPalette in the app
+
+
+def assign_colors(members):
+    # everyone keeps the colour they were given; new people get the lowest one nobody has
+    taken = set()
+    for m in members:
+        c = m.get("color")
+        if isinstance(c, int) and 0 <= c < COLORS and c not in taken:
+            taken.add(c)
+        else:
+            m["color"] = None
+    for m in members:
+        if m["color"] is None:
+            free = next((c for c in range(COLORS) if c not in taken), len(taken) % COLORS)
+            m["color"] = free
+            taken.add(free)
+    return members
+
+
 def clean_member(m, old=None, chore_names=None):
     old = old or {}
     free = list(m.get("free") or old.get("free") or [45, 45, 45, 45, 45, 120, 120])
@@ -91,6 +112,7 @@ def clean_member(m, old=None, chore_names=None):
         "dislikes": dislikes,
         "away": old.get("away", []),
         "push": old.get("push"),
+        "color": old.get("color", m.get("color")),
     }
 
 
@@ -333,7 +355,7 @@ def week_snapshot(hh, kind="past"):
         "board": board(hh),
         "fairness": fairness(hh, tasks),
         "summary": hh.get("summary", ""),
-        "members": [{"id": m["id"], "name": m["name"]} for m in hh["members"]],
+        "members": [{"id": m["id"], "name": m["name"], "color": m.get("color")} for m in hh["members"]],
         "chores": [{k: c.get(k) for k in ("id", "name", "icon", "minutes")} for c in hh["chores"]],
     }
 

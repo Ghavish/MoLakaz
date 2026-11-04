@@ -126,7 +126,7 @@ def read_household(text):
     chores = [chore_lib.clean(c) for c in reply.get("chores") or [] if isinstance(c, dict) and c.get("name")]
     names = {c["name"].lower(): c["id"] for c in chores}
     members = [planner.clean_member(m, None, names) for m in reply.get("members") or []
-               if isinstance(m, dict) and m.get("name")]
+               if isinstance(m, dict) and m.get("name")][:planner.MAX_MEMBERS]
     return {"members": members, "chores": chores, "notes": str(reply.get("notes") or "")[:1000]}
 
 

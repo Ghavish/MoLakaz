@@ -79,12 +79,12 @@ def build(tz="Indian/Mauritius"):
     import planner
 
     members = [
-        planner.clean_member({"id": "m_mum", "name": "Mum", "age": 45, "admin": True, "free": [45, 45, 45, 45, 45, 150, 120]}),
-        planner.clean_member({"id": "m_dad", "name": "Dad", "age": 47, "free": [60, 60, 60, 60, 60, 150, 150]}),
+        planner.clean_member({"id": "m_mum", "color": 0, "name": "Mum", "age": 45, "admin": True, "free": [45, 45, 45, 45, 45, 150, 120]}),
+        planner.clean_member({"id": "m_dad", "color": 1, "name": "Dad", "age": 47, "free": [60, 60, 60, 60, 60, 150, 150]}),
         # light on wednesday, the day before his exam
-        planner.clean_member({"id": "m_john", "name": "John", "age": 20, "free": [60, 45, 15, 30, 60, 120, 120]}),
+        planner.clean_member({"id": "m_john", "color": 2, "name": "John", "age": 20, "free": [60, 45, 15, 30, 60, 120, 120]}),
         # football on wednesdays
-        planner.clean_member({"id": "m_sara", "name": "Sara", "age": 9, "free": [25, 25, 0, 25, 25, 60, 60]}),
+        planner.clean_member({"id": "m_sara", "color": 3, "name": "Sara", "age": 9, "free": [25, 25, 0, 25, 25, 60, 60]}),
     ]
     chores = [chore_lib.clean({"id": "c_" + k, "icon": k}) for k in ["dishes", "table", "sweep", "trash", "tidy", "laundry"]]
     hh = {

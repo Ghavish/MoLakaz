@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Chip, FairnessBars, HScroll, IconButton, PersonTile, Screen, Sheet, TextLink, TintCard, Txt } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useHousehold } from '@/lib/session';
-import { DAYS, dayDate, personColourOrder, personTone, radius, shiftWeek, useTheme, weekName, weekRange } from '@/lib/theme';
+import { DAYS, dayDate, personTone, radius, shiftWeek, toneFor, useTheme, weekName, weekRange } from '@/lib/theme';
 import type { WeekView } from '@/lib/types';
 import { useRefresher } from '@/lib/useRefresher';
 
@@ -69,8 +69,8 @@ export default function Week() {
   const chores: Record<string, { name: string; minutes: number }> = Object.fromEntries([...(view?.chores ?? []), ...hh.chores].map((x) => [x.id, x]));
   const tone = (id: string) => {
     if (hh.members.some((m) => m.id === id)) return personTone(c, hh, id);
-    const i = Math.max(0, (view?.members ?? []).findIndex((m) => m.id === id));
-    return c[personColourOrder[i % personColourOrder.length]];
+    // someone who has left since: use the colour saved with that week
+    return toneFor(c, view?.members ?? [], id);
   };
 
   const rows = board

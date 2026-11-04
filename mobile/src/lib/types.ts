@@ -23,6 +23,7 @@ export type Member = {
   free: number[];
   dislikes: string[];
   away?: number[];
+  color?: number | null; // index into personPalette, kept for good
 };
 
 export type CheckResult = {
@@ -101,6 +102,6 @@ export type WeekView = {
   board: BoardRow[];
   fairness: number;
   summary?: string;
-  members: { id: string; name: string }[];
+  members: { id: string; name: string; color?: number | null }[];
   chores: { id: string; name: string; icon: string; minutes: number }[];
 };

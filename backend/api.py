@@ -159,7 +159,7 @@ def create_household(body: NewHousehold):
         tz = body.tz
     except Exception:
         tz = planner.TZ
-    me = planner.clean_member({"name": body.your_name, "admin": True})
+    me = planner.clean_member({"name": body.your_name, "admin": True, "color": 0})
     hh = {
         "id": planner.new_id("h"),
         "name": body.name.strip()[:40] or "Our home",
@@ -203,6 +203,9 @@ def setup(hid: str, body: Setup):
     members = [planner.clean_member(m, old.get(m.get("id")), names)
                for m in body.members if str(m.get("name") or "").strip()]
 
+    if len(members) > planner.MAX_MEMBERS:
+        raise HTTPException(400, f"A household can have up to {planner.MAX_MEMBERS} people")
+    planner.assign_colors(members)
     if not any(m["id"] == body.member_id for m in members):
         raise HTTPException(400, "You can't take yourself out of the household")
     for m in members:

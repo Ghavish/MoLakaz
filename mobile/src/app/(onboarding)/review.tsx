@@ -7,7 +7,7 @@ import { Button, Chip, choreTone, Header, Input, ListCard, PersonTile, Screen, S
 import { api } from '@/lib/api';
 import { useFlow } from '@/lib/flow';
 import { useHousehold, useSession } from '@/lib/session';
-import { DAYS, font, freeLabel, personTone, radius, tell, timesLabel, useTheme } from '@/lib/theme';
+import { DAYS, font, freeLabel, MAX_MEMBERS, personTone, radius, tell, timesLabel, useTheme } from '@/lib/theme';
 import type { Chore, Member } from '@/lib/types';
 
 const QUICK = [
@@ -65,6 +65,7 @@ export default function Review() {
   const firstTime = hh.chores.length === 0;
 
   function addPerson() {
+    if (members.length >= MAX_MEMBERS) return tell(`A household can have up to ${MAX_MEMBERS} people`);
     const m: Member = { id: tempId(), name: '', age: 30, admin: false, free: [45, 45, 45, 45, 45, 120, 120], dislikes: [] };
     setMembers((ms) => [...ms, m]);
     setPerson(m.id);
@@ -119,7 +120,7 @@ export default function Review() {
       <Txt v="title">Your household</Txt>
       <Txt v="caption">Check what we set up. Tap anything to change it.</Txt>
 
-      <Section right={<TextLink label="+ Add person" onPress={addPerson} />}>People</Section>
+      <Section right={members.length < MAX_MEMBERS ? <TextLink label="+ Add person" onPress={addPerson} /> : <Txt v="caption">{MAX_MEMBERS} people max</Txt>}>People</Section>
       <ListCard>
         {members.map((m) => (
           <Pressable key={m.id} onPress={() => setPerson(m.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 8 }}>
