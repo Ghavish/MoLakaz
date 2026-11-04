@@ -100,6 +100,11 @@ export const api = {
     upload<Household>(`/households/${hid}/tasks/${tid}/before`, uri, me),
   after: (hid: string, tid: string, me: string, uri: string) =>
     upload<{ household: Household; check: CheckResult }>(`/households/${hid}/tasks/${tid}/after`, uri, me),
+  retake: (hid: string, tid: string, me: string) =>
+    post<{ household: Household; note: string }>(`/households/${hid}/tasks/${tid}/retake`, { member_id: me }),
+  askReview: (hid: string, tid: string, me: string) =>
+    post<{ household: Household; note: string }>(`/households/${hid}/tasks/${tid}/review`, { member_id: me }),
+  testPush: (hid: string, me: string) => post<{ ok: boolean; note: string }>(`/households/${hid}/push/test`, { member_id: me }),
   pushToken: (hid: string, me: string, token: string) =>
     post<{ ok: boolean }>(`/households/${hid}/push`, { member_id: me, token }),
   readHousehold: (text: string) => post<Draft>('/ai/setup', { text }),

@@ -70,7 +70,36 @@ export type Colors = (typeof palette)['dark'];
 export type Tone = { strong: string; tint: string; ink: string };
 export type ToneName = 'success' | 'ai' | 'amber' | 'blue' | 'coral';
 
-export const personColourOrder: ToneName[] = ['coral', 'amber', 'blue', 'ai'];
+// one colour per person, up to 10 people. no purple (that's the assistant) and no green (that means done).
+// each person keeps theirs: the backend stores it as member.color, an index into this list
+const tone = (strong: string, tint: string, ink: string): Tone => ({ strong, tint, ink });
+export const personPalette = {
+  light: [
+    tone('#FF7A59', '#FFE6DE', '#AD3A0B'), // coral
+    tone('#F5A623', '#FFF1D6', '#9A4A08'), // amber
+    tone('#3D7BF0', '#E1EBFF', '#1D4ED8'), // blue
+    tone('#E4579B', '#FDE4F0', '#BE185D'), // pink
+    tone('#14A3A3', '#D7F5F4', '#0F766E'), // teal
+    tone('#2BA6DE', '#DDF2FC', '#0369A1'), // sky
+    tone('#7CB518', '#EDF7D6', '#3F6A0C'), // lime
+    tone('#A8714A', '#F5E8DE', '#8A4B22'), // cocoa
+    tone('#64748B', '#E7EBF0', '#334155'), // slate
+    tone('#D63D5A', '#FCE3E8', '#B91C3C'), // crimson
+  ],
+  dark: [
+    tone('#FF8A6B', '#3A211B', '#FFB39E'),
+    tone('#F5B041', '#3A2E16', '#FFD58A'),
+    tone('#5B8CFF', '#1A2540', '#A9C2FF'),
+    tone('#F27AB4', '#3B1C2C', '#F9B4D6'),
+    tone('#2CC4C4', '#123333', '#8DE5E3'),
+    tone('#5CC3EE', '#14293A', '#A5DDF5'),
+    tone('#9CD23A', '#243013', '#C9EA8C'),
+    tone('#C99270', '#33241A', '#E7C3A9'),
+    tone('#94A3B8', '#22272F', '#CBD5E1'),
+    tone('#F0647D', '#3A1A20', '#F8A9B7'),
+  ],
+};
+export const MAX_MEMBERS = personPalette.light.length;
 
 export const radius = { card: 22, cardSmall: 18, button: 28, chip: 18, tile: 14, avatarTile: 12 };
 export const space = { screenX: 24, screenTop: 28, gapS: 8, gapM: 12, gapL: 16, section: 22 };
@@ -131,9 +160,35 @@ export function makeStyles<T>(fn: (t: Theme) => T) {
   };
 }
 
+// same rule as the backend's assign_colors: keep stored colours, give anyone without one the lowest free colour.
+// that way a person added in Review shows the colour they'll get once saved
+export function memberColors(members: { id: string; color?: number | null }[]) {
+  const out: Record<string, number> = {};
+  const taken = new Set<number>();
+  for (const m of members) {
+    const c = m.color;
+    if (typeof c === 'number' && c >= 0 && c < MAX_MEMBERS && !taken.has(c)) {
+      out[m.id] = c;
+      taken.add(c);
+    }
+  }
+  for (const m of members) {
+    if (out[m.id] !== undefined) continue;
+    let free = 0;
+    while (taken.has(free) && free < MAX_MEMBERS) free++;
+    out[m.id] = free % MAX_MEMBERS;
+    taken.add(free);
+  }
+  return out;
+}
+
+export function toneFor(c: Colors, members: { id: string; color?: number | null }[], id: string): Tone {
+  const list = c === palette.dark ? personPalette.dark : personPalette.light;
+  return list[memberColors(members)[id] ?? 0];
+}
+
 export function personTone(c: Colors, hh: Household | null, id: string): Tone {
-  const i = hh ? hh.members.findIndex((m) => m.id === id) : 0;
-  return c[personColourOrder[Math.max(i, 0) % personColourOrder.length]];
+  return toneFor(c, hh?.members ?? [], id);
 }
 
 export function usePersonTone(hh: Household | null) {
@@ -181,6 +236,26 @@ export function dayLabel(hh: Household, day: number) {
   if (day === hh.today) return 'Today';
   if (day === hh.today + 1) return 'Tomorrow';
   return LONG_DAYS[day];
+}
+
+// "19:30" -> "7:30 pm", "" -> "Anytime"
+export function timeLabel(t?: string | null) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '');
+  if (!m) return 'Anytime';
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+// sort key: chores with a time first, in order, anytime ones last
+export function timeOrder(t?: string | null) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '');
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 24 * 60;
+}
+
+export function shiftTime(t: string | undefined, minutes: number) {
+  const base = timeOrder(t) === 24 * 60 ? 18 * 60 - minutes : timeOrder(t);
+  const v = Math.min(23 * 60 + 30, Math.max(5 * 60, base + minutes));
+  return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`;
 }
 
 export function freeLabel(mins: number) {

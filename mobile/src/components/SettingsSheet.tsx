@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarSync, LogOut, Monitor, Moon, RefreshCw, Sun } from 'lucide-react-native';
+import { Bell, CalendarSync, LogOut, Monitor, Moon, RefreshCw, Sun } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -14,6 +14,18 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const setHousehold = useSession((s) => s.setHousehold);
   const leave = useSession((s) => s.leave);
   const [busy, setBusy] = useState<string | null>(null);
+
+  async function testPush() {
+    if (!hh || !me) return;
+    setBusy('push');
+    try {
+      tell('Test reminder', (await api.testPush(hh.id, me)).note);
+    } catch (e) {
+      tell("Couldn't send it", (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function run(what: 'plan' | 'rebalance') {
     if (!hh || !me) return;
@@ -63,6 +75,16 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
       </View>
 
       <Txt v="caption" style={{ marginTop: 22, marginBottom: 8 }}>
+        Notifications
+      </Txt>
+      <Txt v="caption" style={{ marginBottom: 8 }}>
+        {member?.has_push
+          ? 'This phone is set up for notifications: chore reminders, and when someone asks you about a chore.'
+          : "Not set up on this phone yet. Reminders need the installed MoLakaz app (not Expo Go) with notifications allowed."}
+      </Txt>
+      <Button label="Send me a test reminder" kind="outline" icon={Bell} onPress={testPush} loading={busy === 'push'} />
+
+      <Txt v="caption" style={{ marginTop: 22, marginBottom: 8 }}>
         This phone
       </Txt>
       <Button
@@ -77,9 +99,6 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           })
         }
       />
-      <Txt v="caption" center style={{ marginTop: 18 }}>
-        Notifications are set in your phone's settings for MoLakaz.
-      </Txt>
     </Sheet>
   );
 }

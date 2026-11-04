@@ -3,15 +3,15 @@ import { Camera, Check, RotateCcw, Sparkles } from 'lucide-react-native';
 import { Image, Pressable, Text, View } from 'react-native';
 
 import { Button, Card, Header, Screen, Txt } from '@/components/ui';
-import { photoUrl } from '@/lib/api';
-import { askAdminToCheck } from '@/lib/mocks';
-import { useHousehold } from '@/lib/session';
+import { api, photoUrl } from '@/lib/api';
+import { useHousehold, useSession } from '@/lib/session';
 import { font, radius, tell, useTheme } from '@/lib/theme';
 
 export default function Result() {
   const { c } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { hh, me } = useHousehold();
+  const setHousehold = useSession((s) => s.setHousehold);
   if (!hh || !me) return null;
   const t = hh.tasks.find((x) => x.id === id);
   const chore = t && hh.chores.find((x) => x.id === t.chore);
@@ -77,8 +77,13 @@ export default function Result() {
           {admin && admin.id !== me ? (
             <Pressable
               onPress={async () => {
-                await askAdminToCheck();
-                tell('Sent', `${admin.name} will take a look.`);
+                try {
+                  const res = await api.askReview(hh.id, t.id, me);
+                  setHousehold(res.household);
+                  tell('Sent', `${admin.name} will find it in Approvals. ${res.note}`);
+                } catch (e) {
+                  tell("That didn't work", (e as Error).message);
+                }
               }}
               style={{ minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}
             >

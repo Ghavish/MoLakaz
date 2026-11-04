@@ -107,14 +107,14 @@ def improve(hh, today):
 SETUP_RULES = """Turn a family's description of their household into JSON for a chore app.
 People: name, age (guess 35 for an adult if not said), and free minutes for chores on each day Mon..Sun as 7 numbers.
 Think about work, school and shifts: someone working 9-5 has about 30-45 on weekdays and 90-150 on weekends, a kid has 15-30 on school days.
-Chores: name, minutes per go, effort 1-3, times per week (1-7), min_age, and how a photo can prove it's done:
+Chores: name, minutes per go, effort 1-3, times per week (1-7), min_age, the usual time of day as 24h "HH:MM" (or "" if it can be done any time), and how a photo can prove it's done:
   check.mode "clear" when stuff should be gone afterwards (dishes, clutter, trash) or "show" when something should appear (folded clothes, cooked food)
   check.look_for: 1-3 short noun phrases a segmentation model can find in a photo, like "dirty dish", "toy", "folded clothes"
   check.spot: one object that's in both the before and after photo so we know it's the same place, like "sink" or "sofa", or "" if there isn't one
 If they don't list chores, pick the usual ones for a home like theirs.
 Reply with JSON only:
 {"members": [{"name": "", "age": 0, "free": [0, 0, 0, 0, 0, 0, 0], "dislikes": ["chore name"]}],
- "chores": [{"name": "", "minutes": 0, "effort": 1, "per_week": 1, "min_age": 0, "check": {"mode": "clear", "look_for": [""], "spot": ""}}],
+ "chores": [{"name": "", "minutes": 0, "effort": 1, "per_week": 1, "min_age": 0, "time": "19:30", "check": {"mode": "clear", "look_for": [""], "spot": ""}}],
  "notes": "anything else the weekly planner should know, like exams or shifts"}"""
 
 
@@ -126,7 +126,7 @@ def read_household(text):
     chores = [chore_lib.clean(c) for c in reply.get("chores") or [] if isinstance(c, dict) and c.get("name")]
     names = {c["name"].lower(): c["id"] for c in chores}
     members = [planner.clean_member(m, None, names) for m in reply.get("members") or []
-               if isinstance(m, dict) and m.get("name")]
+               if isinstance(m, dict) and m.get("name")][:planner.MAX_MEMBERS]
     return {"members": members, "chores": chores, "notes": str(reply.get("notes") or "")[:1000]}
 
 
@@ -135,7 +135,8 @@ check.mode is "clear" if stuff should be gone in the after photo, "show" if some
 check.look_for is 1-3 short noun phrases a segmentation model can find in a photo.
 check.spot is one object visible in both photos (same place), or "".
 Reply with JSON only:
-{"minutes": 15, "effort": 2, "per_week": 2, "min_age": 8, "check": {"mode": "clear", "look_for": ["..."], "spot": "..."}}"""
+time is the usual time of day as 24h "HH:MM", or "" if it can be done any time.
+{"minutes": 15, "effort": 2, "per_week": 2, "min_age": 8, "time": "18:00", "check": {"mode": "clear", "look_for": ["..."], "spot": "..."}}"""
 
 
 def guess_chore(name):

@@ -12,6 +12,7 @@ export type Chore = {
   effort: number;
   per_week: number;
   min_age: number;
+  time?: string; // usual time of day, "19:30". empty means anytime
   check: Check;
 };
 
@@ -23,6 +24,8 @@ export type Member = {
   free: number[];
   dislikes: string[];
   away?: number[];
+  has_push?: boolean; // this person's phone is set up for notifications
+  color?: number | null; // index into personPalette, kept for good
 };
 
 export type CheckResult = {
@@ -52,6 +55,7 @@ export type Task = {
   check?: CheckResult | null;
   by?: string;
   done_at?: number;
+  review?: boolean; // someone asked the admin to check it
 };
 
 export type BoardRow = {
@@ -101,6 +105,6 @@ export type WeekView = {
   board: BoardRow[];
   fairness: number;
   summary?: string;
-  members: { id: string; name: string }[];
-  chores: { id: string; name: string; icon: string; minutes: number }[];
+  members: { id: string; name: string; color?: number | null }[];
+  chores: { id: string; name: string; icon: string; minutes: number; time?: string }[];
 };

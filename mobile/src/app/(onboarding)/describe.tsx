@@ -7,7 +7,7 @@ import { Badge, Button, Card, Chip, Header, HScroll, IconButton, Input, Screen, 
 import { api } from '@/lib/api';
 import { useFlow } from '@/lib/flow';
 import { useSession } from '@/lib/session';
-import { font, tell, useTheme } from '@/lib/theme';
+import { font, MAX_MEMBERS, tell, useTheme } from '@/lib/theme';
 import type { Household } from '@/lib/types';
 
 const HINTS = [
@@ -63,9 +63,9 @@ export default function Describe() {
           const draft = await api.readHousehold(story);
           const mine = hh.members.find((m) => m.id === me)!;
           // keep me as me, so i stay admin
-          let people = draft.members.map((m) => (m.name.toLowerCase() === mine.name.toLowerCase() ? { ...m, id: me, admin: true } : m));
+          let people = draft.members.map((m) => (m.name.toLowerCase() === mine.name.toLowerCase() ? { ...m, id: me, admin: true, color: mine.color } : m));
           if (!people.some((m) => m.id === me)) people = [mine, ...people];
-          setDraft({ members: people, chores: draft.chores, notes: draft.notes });
+          setDraft({ members: people.slice(0, MAX_MEMBERS), chores: draft.chores, notes: draft.notes });
         } catch (e) {
           tell('Muse Spark got stuck', `${(e as Error).message}\n\nYou can add people and chores by hand.`);
         }

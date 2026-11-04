@@ -1,3 +1,5 @@
+import re
+
 import planner
 
 # the usual chores, plus what sam should look for in the photos.
@@ -5,25 +7,25 @@ import planner
 # mode "show"  = the stuff in look_for should turn up in the after photo
 # spot = something that's in both photos, so we know it's the same place
 TEMPLATES = {
-    "dishes": {"name": "Wash the dishes", "minutes": 20, "effort": 2, "per_week": 7, "min_age": 8,
+    "dishes": {"name": "Wash the dishes", "minutes": 20, "effort": 2, "per_week": 7, "time": "19:30", "min_age": 8,
                "check": {"mode": "clear", "look_for": ["dirty dish", "cup", "pan"], "spot": "sink"}},
-    "table": {"name": "Clear the table", "minutes": 10, "effort": 1, "per_week": 7, "min_age": 6,
+    "table": {"name": "Clear the table", "minutes": 10, "effort": 1, "per_week": 7, "time": "19:00", "min_age": 6,
               "check": {"mode": "clear", "look_for": ["plate", "cup", "crumbs"], "spot": "table"}},
-    "sweep": {"name": "Sweep the floor", "minutes": 15, "effort": 2, "per_week": 3, "min_age": 9,
+    "sweep": {"name": "Sweep the floor", "minutes": 15, "effort": 2, "per_week": 3, "time": "17:30", "min_age": 9,
               "check": {"mode": "clear", "look_for": ["dust", "crumbs", "litter"], "spot": "floor"}},
-    "trash": {"name": "Take out the trash", "minutes": 5, "effort": 1, "per_week": 3, "min_age": 7,
+    "trash": {"name": "Take out the trash", "minutes": 5, "effort": 1, "per_week": 3, "time": "07:00", "min_age": 7,
               "check": {"mode": "clear", "look_for": ["trash bag", "garbage"], "spot": "trash can"}},
-    "tidy": {"name": "Tidy the living room", "minutes": 15, "effort": 1, "per_week": 3, "min_age": 5,
+    "tidy": {"name": "Tidy the living room", "minutes": 15, "effort": 1, "per_week": 3, "time": "18:00", "min_age": 5,
              "check": {"mode": "clear", "look_for": ["toy", "clothes", "shoe"], "spot": "sofa"}},
-    "laundry": {"name": "Fold the laundry", "minutes": 20, "effort": 2, "per_week": 2, "min_age": 10,
+    "laundry": {"name": "Fold the laundry", "minutes": 20, "effort": 2, "per_week": 2, "time": "10:00", "min_age": 10,
                 "check": {"mode": "show", "look_for": ["folded clothes"], "spot": ""}},
-    "bathroom": {"name": "Clean the bathroom", "minutes": 30, "effort": 3, "per_week": 1, "min_age": 13,
+    "bathroom": {"name": "Clean the bathroom", "minutes": 30, "effort": 3, "per_week": 1, "time": "10:30", "min_age": 13,
                  "check": {"mode": "clear", "look_for": ["stain", "dirt", "towel on the floor"], "spot": "toilet"}},
-    "cook": {"name": "Cook dinner", "minutes": 45, "effort": 3, "per_week": 5, "min_age": 15,
+    "cook": {"name": "Cook dinner", "minutes": 45, "effort": 3, "per_week": 5, "time": "18:00", "min_age": 15,
              "check": {"mode": "show", "look_for": ["cooked food"], "spot": ""}},
-    "yard": {"name": "Sweep the yard", "minutes": 20, "effort": 2, "per_week": 1, "min_age": 10,
+    "yard": {"name": "Sweep the yard", "minutes": 20, "effort": 2, "per_week": 1, "time": "09:00", "min_age": 10,
              "check": {"mode": "clear", "look_for": ["dry leaves", "litter"], "spot": ""}},
-    "bed": {"name": "Make the bed", "minutes": 5, "effort": 1, "per_week": 7, "min_age": 6,
+    "bed": {"name": "Make the bed", "minutes": 5, "effort": 1, "per_week": 7, "time": "07:30", "min_age": 6,
             "check": {"mode": "clear", "look_for": ["clothes", "crumpled blanket"], "spot": "bed"}},
 }
 
@@ -50,6 +52,15 @@ def match(name):
     return None
 
 
+def clean_time(t):
+    # "19:30" style, 24h. "" means anytime
+    m = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*", str(t or ""))
+    if not m:
+        return ""
+    h, mi = int(m.group(1)), int(m.group(2))
+    return f"{h:02d}:{mi:02d}" if h < 24 and mi < 60 else ""
+
+
 def clean(c):
     key = c.get("icon") if c.get("icon") in TEMPLATES else match(c.get("name", ""))
     base = TEMPLATES.get(key, {})
@@ -67,6 +78,8 @@ def clean(c):
         "effort": planner.clamp(c.get("effort") or base.get("effort") or 2, 1, 3),
         "per_week": planner.clamp(c.get("per_week") or base.get("per_week") or 1, 1, 7),
         "min_age": planner.clamp(min_age, 0, 99),
+        # the usual time of day. a chore saved before times existed picks up its template's time
+        "time": clean_time(c["time"] if "time" in c else base.get("time", "")),
         "check": {
             "mode": "show" if check.get("mode") == "show" else "clear",
             "look_for": look or ["mess", "clutter"],
