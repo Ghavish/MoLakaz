@@ -106,7 +106,8 @@ def task(hh, tid):
 def view(hh):
     out = dict(hh)
     out.pop("undo", None)  # undo snapshots stay on the server
-    out["members"] = [{k: v for k, v in m.items() if k != "push"} for m in hh["members"]]
+    # push tokens stay on the server; the app only needs to know whether a phone is set up for notifications
+    out["members"] = [{**{k: v for k, v in m.items() if k != "push"}, "has_push": bool(m.get("push"))} for m in hh["members"]]
     out["today"] = planner.today_index(hh["tz"])
     out["board"] = planner.board(hh)
     out["fairness"] = planner.fairness(hh, hh.get("tasks", []))
@@ -339,10 +340,75 @@ def approve(hid: str, tid: str, body: Who):
     t = task(hh, tid)
     t["status"] = "done"
     t["done_at"] = time.time()
+    t["review"] = False
     t["check"] = {**(t.get("check") or {}), "verdict": "done", "manual": True,
                   "reason": f"Approved by {boss['name']}"}
     save(hh)
     return view(hh)
+
+
+def chore_name(hh, t):
+    return next((c["name"] for c in hh["chores"] if c["id"] == t["chore"]), "a chore")
+
+
+def push_note(tickets):
+    # what to tell the person who pressed the button
+    if not tickets:
+        return "They'll see it in the app. (Their phone isn't set up for notifications yet.)"
+    bad = [x for x in tickets if x.get("status") != "ok"]
+    if bad:
+        return "Couldn't send the notification: " + str(bad[0].get("message") or "unknown error")
+    return "Sent them a notification."
+
+
+@web.post("/households/{hid}/tasks/{tid}/retake")
+def retake(hid: str, tid: str, body: Who):
+    import jobs
+
+    hh = load(hid)
+    boss = member(hh, body.member_id, admin=True)
+    t = task(hh, tid)
+    if t["status"] == "done":
+        raise HTTPException(400, "That one's already done")
+    t["status"] = "retry"
+    t["review"] = False
+    t["check"] = {**(t.get("check") or {}), "verdict": "retry", "reason": f"{boss['name']} asked for a new after photo."}
+    save(hh)
+    who = [m for m in hh["members"] if m["id"] == t["member"]]
+    tickets = jobs.push_to(who, f"{boss['name']} asked for a retake 📸", f"Snap a new after photo for {chore_name(hh, t)}.")
+    return {"household": view(hh), "note": push_note(tickets)}
+
+
+@web.post("/households/{hid}/tasks/{tid}/review")
+def ask_review(hid: str, tid: str, body: Who):
+    import jobs
+
+    hh = load(hid)
+    asker = member(hh, body.member_id)
+    t = task(hh, tid)
+    t["review"] = True
+    save(hh)
+    admins = [m for m in hh["members"] if m.get("admin") and m["id"] != asker["id"]]
+    tickets = jobs.push_to(admins, f"{asker['name']} asked you to check a chore", f"Have a look at {chore_name(hh, t)} in Home › Approvals.")
+    return {"household": view(hh), "note": push_note(tickets)}
+
+
+@web.post("/households/{hid}/push/test")
+def test_push(hid: str, body: Who):
+    import jobs
+
+    hh = load(hid)
+    m = member(hh, body.member_id)
+    if not m.get("push"):
+        raise HTTPException(400, "This phone isn't set up for notifications yet. That needs the installed app (not Expo Go) "
+                                 "with notifications allowed.")
+    today = planner.today_index(hh["tz"])
+    mine = [chore_name(hh, t) for t in hh["tasks"] if t["member"] == m["id"] and t["day"] == today and t["status"] != "done"]
+    tickets = jobs.push_to([m], f"Bonzour {m['name']}! ☀️", ("Today: " + ", ".join(mine)) if mine else "Nothing left for you today. Enjoy!")
+    note = push_note(tickets)
+    if note.startswith("Couldn't"):
+        raise HTTPException(502, note)
+    return {"ok": True, "note": "Sent. It should pop up in a few seconds."}
 
 
 @web.post("/households/{hid}/push")

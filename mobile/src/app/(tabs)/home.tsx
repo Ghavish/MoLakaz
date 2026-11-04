@@ -7,7 +7,6 @@ import { Image, Pressable, Share, Text, View } from 'react-native';
 import { SettingsSheet } from '@/components/SettingsSheet';
 import { Button, Card, Chip, HScroll, IconButton, Input, ListCard, PersonTile, Screen, Txt } from '@/components/ui';
 import { api, photoUrl } from '@/lib/api';
-import { askForRetake } from '@/lib/mocks';
 import { useHousehold, useSession } from '@/lib/session';
 import { ask, dayLabel, font, freeLabel, personTone, radius, tell, timeLabel, timesLabel, useTheme } from '@/lib/theme';
 import { useRefresher } from '@/lib/useRefresher';
@@ -29,7 +28,8 @@ export default function Home() {
 
   const admin = hh.members.find((m) => m.admin) ?? hh.members[0];
   const isAdmin = member.admin;
-  const pending = hh.tasks.filter((t) => t.status === 'retry');
+  // the photo check wasn't sure, or someone asked the admin to look
+  const pending = hh.tasks.filter((t) => t.status === 'retry' || (t.review && t.status !== 'done'));
   const notes = (hh.notes || '').split('\n').map((n) => n.trim()).filter(Boolean);
   const fair = Math.round(hh.fairness * 100);
 
@@ -44,9 +44,17 @@ export default function Home() {
     }
   }
 
-  async function retake(name: string) {
-    await askForRetake();
-    tell('Retake requested', `We'll ask ${name} to snap the after photo again.`);
+  async function retake(tid: string, name: string) {
+    setBusy('retake:' + tid);
+    try {
+      const res = await api.retake(hh!.id, tid, me!);
+      setHousehold(res.household);
+      tell('Retake requested', `${name} needs to snap a new after photo. ${res.note}`);
+    } catch (e) {
+      tell("That didn't work", (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
   }
 
   // notes are saved with the household setup, which re-plans the week
@@ -134,14 +142,14 @@ export default function Home() {
                       <Text style={{ color: personTone(c, hh, who.id).ink }}>{who.name}</Text> · {chore.name}
                     </Text>
                     <Txt v="caption">
-                      {dayLabel(hh, t.day)} · {t.check?.reason ?? "The photo check wasn't sure."} Can you look?
+                      {dayLabel(hh, t.day)} · {t.review ? `${who.name} asked you to check this.` : `${t.check?.reason ?? "The photo check wasn't sure."} Can you look?`}
                     </Txt>
                   </View>
                 </View>
                 {isAdmin ? (
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                     <Button label="Approve" small onPress={() => approve(t.id)} loading={busy === 'approve:' + t.id} style={{ flex: 1 }} />
-                    <Button label="Ask for a retake" kind="outline" small onPress={() => retake(who.name)} style={{ flex: 1 }} />
+                    <Button label="Ask for a retake" kind="outline" small onPress={() => retake(t.id, who.name)} loading={busy === 'retake:' + t.id} style={{ flex: 1 }} />
                   </View>
                 ) : null}
               </Card>

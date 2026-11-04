@@ -12,14 +12,24 @@ def households():
 
 
 def send_push(messages):
-    # expo's push service, no key needed. tokens only exist on real builds (not expo go)
+    # expo's push service, no key needed. tokens only exist on real builds (not expo go).
+    # returns expo's ticket per message, so a failure (like missing FCM credentials) can be shown
     messages = [m for m in messages if str(m.get("to", "")).startswith("ExponentPushToken")]
+    tickets = []
     for i in range(0, len(messages), 100):
         try:
             r = httpx.post("https://exp.host/--/api/v2/push/send", json=messages[i:i + 100], timeout=15)
             print("push", r.status_code, len(messages[i:i + 100]))
+            data = r.json().get("data", [])
+            tickets += data if isinstance(data, list) else [data]
         except Exception as e:
             print("push failed:", e)
+            tickets.append({"status": "error", "message": str(e)})
+    return tickets
+
+
+def push_to(members, title, body):
+    return send_push([{"to": m["push"], "title": title, "body": body, "sound": "default"} for m in members if m.get("push")])
 
 
 def remind(hh, evening=False):
