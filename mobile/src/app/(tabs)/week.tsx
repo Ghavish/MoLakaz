@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Chip, FairnessBars, HScroll, IconButton, PersonTile, Screen, Sheet, TextLink, TintCard, Txt } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useHousehold } from '@/lib/session';
-import { DAYS, dayDate, personTone, radius, shiftWeek, toneFor, useTheme, weekName, weekRange } from '@/lib/theme';
+import { DAYS, dayDate, personTone, radius, shiftWeek, timeLabel, timeOrder, toneFor, useTheme, weekName, weekRange } from '@/lib/theme';
 import type { WeekView } from '@/lib/types';
 import { useRefresher } from '@/lib/useRefresher';
 
@@ -66,7 +66,7 @@ export default function Week() {
 
   // past weeks keep their own names, in case someone left or a chore was renamed since
   const names: Record<string, string> = Object.fromEntries([...(view?.members ?? []), ...hh.members].map((m) => [m.id, m.name]));
-  const chores: Record<string, { name: string; minutes: number }> = Object.fromEntries([...(view?.chores ?? []), ...hh.chores].map((x) => [x.id, x]));
+  const chores: Record<string, { name: string; minutes: number; time?: string }> = Object.fromEntries([...(view?.chores ?? []), ...hh.chores].map((x) => [x.id, x]));
   const tone = (id: string) => {
     if (hh.members.some((m) => m.id === id)) return personTone(c, hh, id);
     // someone who has left since: use the colour saved with that week
@@ -77,7 +77,7 @@ export default function Week() {
     .filter((r) => names[r.member])
     .map((r) => ({ key: r.member, name: names[r.member], tone: tone(r.member), pct: r.free ? r.minutes / r.free : 0 }));
   const scale = Math.max(...rows.map((r) => r.pct), 0.01) * 1.3;
-  const dayTasks = tasks.filter((t) => t.day === day);
+  const dayTasks = tasks.filter((t) => t.day === day).sort((a, b) => timeOrder(chores[a.chore]?.time) - timeOrder(chores[b.chore]?.time));
   const done = tasks.filter((t) => t.status === 'done').length;
 
   return (
@@ -169,7 +169,7 @@ export default function Week() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Txt v="caption" style={{ fontSize: 11 }}>
-                        {chore.minutes} min
+                        {timeLabel(chore.time)}
                         {t.status === 'started' ? ' · in progress' : t.status === 'retry' ? ' · needs a retake' : missed ? ' · not done' : ''}
                       </Txt>
                       <Txt v="bodyMedium" strike={isDone} color={isDone ? c.textMuted : c.text} numberOfLines={1}>

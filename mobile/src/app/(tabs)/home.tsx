@@ -9,7 +9,7 @@ import { Button, Card, Chip, HScroll, IconButton, Input, ListCard, PersonTile, S
 import { api, photoUrl } from '@/lib/api';
 import { askForRetake } from '@/lib/mocks';
 import { useHousehold, useSession } from '@/lib/session';
-import { ask, dayLabel, font, freeLabel, personTone, radius, tell, timesLabel, useTheme } from '@/lib/theme';
+import { ask, dayLabel, font, freeLabel, personTone, radius, tell, timeLabel, timesLabel, useTheme } from '@/lib/theme';
 import { useRefresher } from '@/lib/useRefresher';
 
 type Tab = 'approvals' | 'notes' | 'people' | 'chores';
@@ -212,7 +212,7 @@ export default function Home() {
               <Pressable key={x.id} disabled={!isAdmin} onPress={() => router.push('/review')} style={{ minHeight: 56, paddingVertical: 10, justifyContent: 'center' }}>
                 <Txt v="bodyMedium">{x.name}</Txt>
                 <Txt v="caption">
-                  {timesLabel(x.per_week)} · {x.minutes} min
+                  {timesLabel(x.per_week)} · {timeLabel(x.time)} · {x.minutes} min
                 </Txt>
               </Pressable>
             ))}

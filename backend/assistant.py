@@ -55,7 +55,8 @@ def _context(hh, me, today):
             "share_of_free_time": round(loads[m["id"]] / planner.capacity(m), 2) if planner.capacity(m) else None,
             "busy_days": [planner.DAYS[d] for d in m.get("away", [])],
         } for m in hh["members"]],
-        "chores": [{"id": c["id"], "name": c["name"], "minutes": c["minutes"], "min_age": c.get("min_age", 0)} for c in hh["chores"]],
+        "chores": [{"id": c["id"], "name": c["name"], "minutes": c["minutes"], "min_age": c.get("min_age", 0),
+                    "time": c.get("time") or "any time"} for c in hh["chores"]],
         "tasks": [{"id": t["id"], "chore": chores[t["chore"]]["name"], "member": t["member"], "day": t["day"], "status": t["status"]}
                   for t in hh.get("tasks", []) if t["chore"] in chores],
         "notes": hh.get("notes", ""),

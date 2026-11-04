@@ -12,6 +12,7 @@ export type Chore = {
   effort: number;
   per_week: number;
   min_age: number;
+  time?: string; // usual time of day, "19:30". empty means anytime
   check: Check;
 };
 
@@ -103,5 +104,5 @@ export type WeekView = {
   fairness: number;
   summary?: string;
   members: { id: string; name: string; color?: number | null }[];
-  chores: { id: string; name: string; icon: string; minutes: number }[];
+  chores: { id: string; name: string; icon: string; minutes: number; time?: string }[];
 };

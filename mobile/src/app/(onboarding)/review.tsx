@@ -7,7 +7,7 @@ import { Button, Chip, choreTone, Header, Input, ListCard, PersonTile, Screen, S
 import { api } from '@/lib/api';
 import { useFlow } from '@/lib/flow';
 import { useHousehold, useSession } from '@/lib/session';
-import { DAYS, font, freeLabel, MAX_MEMBERS, personTone, radius, tell, timesLabel, useTheme } from '@/lib/theme';
+import { DAYS, font, freeLabel, MAX_MEMBERS, personTone, radius, shiftTime, tell, timeLabel, timesLabel, useTheme } from '@/lib/theme';
 import type { Chore, Member } from '@/lib/types';
 
 const QUICK = [
@@ -151,7 +151,7 @@ export default function Review() {
                     {x.name}
                   </Txt>
                   <Txt v="caption">
-                    {timesLabel(x.per_week)} · {x.minutes} min
+                    {timesLabel(x.per_week)} · {timeLabel(x.time)} · {x.minutes} min
                   </Txt>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: t.tint, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5, maxWidth: 150 }}>
@@ -260,6 +260,21 @@ export default function Review() {
                 <Txt v="caption">Youngest age</Txt>
                 <Stepper value={editingChore.min_age} min={0} max={18} onChange={(min_age) => editChore(editingChore.id, { min_age })} />
               </View>
+            </View>
+            <Txt v="caption" style={{ marginTop: 16, marginBottom: 6 }}>
+              Usual time
+            </Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surfaceRaised, borderRadius: 22, padding: 4 }}>
+                <Pressable hitSlop={6} accessibilityLabel="Earlier" onPress={() => editChore(editingChore.id, { time: shiftTime(editingChore.time, -30) })} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 18, color: c.text, marginTop: -1 }}>−</Text>
+                </Pressable>
+                <Text style={{ minWidth: 84, textAlign: 'center', fontFamily: font.semibold, fontSize: 14, color: editingChore.time ? c.text : c.textMuted }}>{timeLabel(editingChore.time)}</Text>
+                <Pressable hitSlop={6} accessibilityLabel="Later" onPress={() => editChore(editingChore.id, { time: shiftTime(editingChore.time, 30) })} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontFamily: font.medium, fontSize: 18, color: c.text, marginTop: -1 }}>+</Text>
+                </Pressable>
+              </View>
+              <Chip label="Anytime" selected={!editingChore.time} selectedKind="highlight" onPress={() => editChore(editingChore.id, { time: '' })} />
             </View>
             <Txt v="caption" style={{ marginTop: 16, marginBottom: 6 }}>
               Effort

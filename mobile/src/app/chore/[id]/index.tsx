@@ -62,7 +62,7 @@ export default function ChoreDetail() {
             {chore.name}
           </Txt>
           <Txt v="caption">
-            {dayLabel(hh, t.day)} · {choreMeta(chore, t)}
+            {dayLabel(hh, t.day)} · {choreMeta(chore, t, true)}
           </Txt>
         </View>
       </View>

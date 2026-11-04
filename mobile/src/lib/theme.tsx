@@ -238,6 +238,26 @@ export function dayLabel(hh: Household, day: number) {
   return LONG_DAYS[day];
 }
 
+// "19:30" -> "7:30 pm", "" -> "Anytime"
+export function timeLabel(t?: string | null) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '');
+  if (!m) return 'Anytime';
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+// sort key: chores with a time first, in order, anytime ones last
+export function timeOrder(t?: string | null) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? '');
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 24 * 60;
+}
+
+export function shiftTime(t: string | undefined, minutes: number) {
+  const base = timeOrder(t) === 24 * 60 ? 18 * 60 - minutes : timeOrder(t);
+  const v = Math.min(23 * 60 + 30, Math.max(5 * 60, base + minutes));
+  return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`;
+}
+
 export function freeLabel(mins: number) {
   if (!mins) return 'No free time';
   const h = Math.floor(mins / 60);

@@ -8,7 +8,7 @@ import { ChoreCard, HeroChore } from '@/components/ChoreRow';
 import { Button, Card, IconButton, PersonTile, ProgressRing, Screen, Section, TextLink, TintCard, Txt } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useHousehold, useSession } from '@/lib/session';
-import { ask, dateOf, font, LONG_DAYS, personTone, tell, useTheme } from '@/lib/theme';
+import { ask, dateOf, font, LONG_DAYS, personTone, tell, timeOrder, useTheme } from '@/lib/theme';
 import type { Task } from '@/lib/types';
 import { useRefresher } from '@/lib/useRefresher';
 
@@ -37,7 +37,9 @@ export default function Today() {
   const today = hh.tasks.filter((t) => t.member === me && t.day === hh.today);
   const done = today.filter((t) => t.status === 'done').length;
   const hero = today.find((t) => t.status === 'started' || t.status === 'retry');
-  const rest = [...today.filter((t) => t !== hero)].sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done'));
+  const timeOf = (t: Task) => timeOrder(hh.chores.find((x) => x.id === t.chore)?.time);
+  // still to do first, in time order, then what's done
+  const rest = [...today.filter((t) => t !== hero)].sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || timeOf(a) - timeOf(b));
   const away = (member.away ?? []).includes(hh.today);
   const note = hh.messages?.[member.id];
   const tone = personTone(c, hh, member.id);

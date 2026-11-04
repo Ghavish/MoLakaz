@@ -356,7 +356,7 @@ def week_snapshot(hh, kind="past"):
         "fairness": fairness(hh, tasks),
         "summary": hh.get("summary", ""),
         "members": [{"id": m["id"], "name": m["name"], "color": m.get("color")} for m in hh["members"]],
-        "chores": [{k: c.get(k) for k in ("id", "name", "icon", "minutes")} for c in hh["chores"]],
+        "chores": [{k: c.get(k) for k in ("id", "name", "icon", "minutes", "time")} for c in hh["chores"]],
     }
 
 
