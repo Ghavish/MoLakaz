@@ -76,7 +76,7 @@ The deploy prints the URL, something like `https://<workspace>--molakaz-web.moda
 Try the photo check on your own pictures (saves `before_marked.jpg` / `after_marked.jpg`):
 
 ```bash
-modal run modal_app.py --before sink_before.jpg --after sink_after.jpg --chore dishes
+modal run modal_app.py::try_photos --before sink_before.jpg --after sink_after.jpg --chore dishes
 ```
 
 The first run downloads the weights into a volume, so it's slow once.
@@ -93,7 +93,7 @@ python try_planner.py                                           # planner sanity
 
 ### Demo household
 
-`python seed_demo.py` (local) or `modal run modal_app.py::seed` (Modal) loads Mum, Dad, John and Sara half way through the week: chores done, one in progress, a photo result, one waiting for approval, Muse Spark's notes and last week saved. Run it again any time to reset. In the app, join with the code `DEMO26` and pick John (or Mum for approvals).
+`python seed_demo.py` (local) or `modal run modal_app.py::seed` (Modal) loads Mum, Dad, John and Sara half way through the week: earlier days done, Sara's tidy waiting in Mum's Approvals, Muse Spark's notes and last week saved. Run it again any time to reset. On Modal, add `--before sink_before.jpg --after sink_after.jpg` (your own photos) to give John's dishes a real SAM 3.1 check. There are no made-up photo results: without photos, John's chores are simply to do, ready to be checked live. In the app, join with the code `DEMO26` and pick John (or Mum for approvals).
 
 ### App
 

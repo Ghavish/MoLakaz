@@ -6,11 +6,24 @@
   "build": {
     "local": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "env": { "EXPO_PUBLIC_API_URL": "http://192.168.8.20:8000" }
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://192.168.8.20:8000"
+      }
     },
     "production": {
       "autoIncrement": true
+    },
+    "modal": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ghavish--molakaz-web.us-east.modal.run"
+      }
     }
   }
 }

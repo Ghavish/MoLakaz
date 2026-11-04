@@ -107,13 +107,26 @@ def web():
     return api.web
 
 
-# load (or reset) the demo household: modal run modal_app.py::seed
-@app.function(image=web_image, volumes={"/photos": photos}, timeout=120)
-def seed():
+@app.function(image=web_image, volumes={"/photos": photos}, timeout=900)
+def seed_remote(before: bytes = b"", after: bytes = b""):
     import seed_demo
 
-    seed_demo.run()
+    check = (lambda b, a, c: Verifier().check.remote(b, a, c)) if before and after else None
+    seed_demo.run(before, after, check)
     photos.commit()
+
+
+# load (or reset) the demo household on modal:
+#   modal run modal_app.py::seed
+# add your own photos to give john's dishes a real SAM 3.1 check:
+#   modal run modal_app.py::seed --before sink_before.jpg --after sink_after.jpg
+@app.local_entrypoint()
+def seed(before: str = "", after: str = ""):
+    b = open(before, "rb").read() if before else b""
+    a = open(after, "rb").read() if after else b""
+    if bool(b) != bool(a):
+        raise SystemExit("Give both --before and --after, or neither.")
+    seed_remote.remote(b, a)
 
 
 # 6:30 every morning: plan the new week on mondays, otherwise carry over missed chores, then remind everyone
@@ -134,7 +147,7 @@ def evening():
 
 
 # try the photo check on your own pictures:
-# modal run modal_app.py --before before.jpg --after after.jpg --chore dishes
+# modal run modal_app.py::try_photos --before before.jpg --after after.jpg --chore dishes
 @app.local_entrypoint()
 def try_photos(before: str, after: str, chore: str = "dishes"):
     import chores
