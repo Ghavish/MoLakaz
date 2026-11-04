@@ -22,7 +22,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ghavish--molakaz-web.modal.run"
+        "EXPO_PUBLIC_API_URL": "https://ghavish--molakaz-web.us-east.modal.run"
       }
     }
   }
